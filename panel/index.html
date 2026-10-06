@@ -135,14 +135,11 @@ pre.code .cm{color:var(--code-dim)}
 .btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
 .btn.ghost:hover{border-color:var(--accent)}
 .lines{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-left:auto}
-.cfg{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:12px}
-.cfg label{font-size:13px;color:var(--muted)}
-.cfg .row{display:flex;gap:8px;flex-wrap:wrap}
-.cfg input{flex:1 1 220px;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-family:var(--font-mono);font-size:12px}
 .notin{margin:20px 0 0;font-size:13px;color:var(--muted);max-width:80ch}
 
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px clamp(16px,4vw,32px);padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line)}
 .bar span{font-size:13px;color:var(--muted);min-width:0}
+.bar .bar-btns{display:flex;gap:8px;flex-shrink:0}
 @media (min-width:920px){.bar{display:none}}
 .toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:13px;z-index:10;max-width:calc(100% - 32px);text-align:center}
 @media (min-width:920px){.toast{bottom:24px}}
@@ -198,17 +195,10 @@ pre.code .cm{color:var(--code-dim)}
         <pre class="code" id="code" tabindex="0" aria-label="Contenido del script"></pre>
         <div class="actions">
           <button class="btn" type="button" id="copy">Copiar script</button>
+          <button class="btn ghost" type="button" id="dl">Descargar script</button>
           <span class="lines" id="lines"></span>
         </div>
         <p class="how" id="how"></p>
-        <div class="cfg" id="cfg">
-          <label for="cfgcode">Código de esta configuración. Pegalo en el chat para que lo convierta en archivo o lo ajuste.</label>
-          <div class="row">
-            <input id="cfgcode" type="text" spellcheck="false" autocomplete="off">
-            <button class="btn ghost" type="button" id="cfgcopy">Copiar código</button>
-            <button class="btn ghost" type="button" id="cfgload">Cargar</button>
-          </div>
-        </div>
       </div>
     </section>
   </div>
@@ -218,7 +208,10 @@ pre.code .cm{color:var(--code-dim)}
 
 <div class="bar">
   <span id="barinfo"></span>
-  <button class="btn" type="button" id="barcopy">Copiar script</button>
+  <div class="bar-btns">
+    <button class="btn ghost" type="button" id="bardl">Descargar</button>
+    <button class="btn" type="button" id="barcopy">Copiar script</button>
+  </div>
 </div>
 <div class="toast" id="toast" hidden></div>
 
@@ -603,6 +596,126 @@ mod_look_icons() {
 }
 </script>
 
+<script type="text/plain" data-mod="look_shelf">
+
+mod_look_shelf() {
+  say "Barra estilo ChromeOS: abajo, menú a la izquierda, apps al centro, reloj y sistema a la derecha"
+  if [ "$TARGET" = mx ]; then
+    local id=1
+    if [ "$DRY_RUN" != 1 ]; then
+      id="$(xfconf-query -c xfce4-panel -p /panels 2>/dev/null | grep -E '^[0-9]+$' | head -n1)"
+      id="${id:-1}"
+    fi
+    xfset xfce4-panel "/panels/panel-$id/mode" uint 0
+    xfset xfce4-panel "/panels/panel-$id/position" string 'p=10;x=0;y=0'
+    xfset xfce4-panel "/panels/panel-$id/length" uint 100
+    xfset xfce4-panel "/panels/panel-$id/size" uint 48
+    xfset xfce4-panel "/panels/panel-$id/position-locked" bool true
+    xfset xfce4-keyboard-shortcuts /commands/custom/Super_L string xfce4-popup-whiskermenu
+    run xfce4-panel -r || true
+    manual "Barra en MX: si los elementos quedaron desordenados, abrí MX Tweak, pestaña Panel, elegí Horizontal y Abajo. Para centrar las apps como en ChromeOS: clic derecho en la barra, Panel, Preferencias del panel, Elementos, y agregá un Separador con la opción Expandir a cada lado de Botones de ventana."
+    return 0
+  fi
+  # Zorin usa su propia versión de dash-to-panel; se busca el esquema que exista
+  local schema=org.gnome.shell.extensions.zorin-taskbar s
+  if [ "$DRY_RUN" != 1 ]; then
+    schema=""
+    for s in org.gnome.shell.extensions.zorin-taskbar org.gnome.shell.extensions.dash-to-panel; do
+      if gsettings list-schemas 2>/dev/null | grep -qx "$s"; then schema="$s"; break; fi
+    done
+  fi
+  if [ -z "$schema" ]; then
+    warn "No se encontró la configuración de la barra de Zorin."
+    manual "Barra: abrí Zorin Appearance, Diseño, elegí la barra abajo y, en la configuración de la barra, centrá los íconos de las apps."
+    return 0
+  fi
+  gs "$schema" panel-position "'BOTTOM'"
+  gs "$schema" panel-positions "'{\"0\":\"BOTTOM\"}'"
+  gs "$schema" panel-size 48
+  gs "$schema" panel-sizes "'{\"0\":48}'"
+  gs "$schema" panel-element-positions "'{\"0\":[{\"element\":\"showAppsButton\",\"visible\":false,\"position\":\"stackedTL\"},{\"element\":\"activitiesButton\",\"visible\":false,\"position\":\"stackedTL\"},{\"element\":\"leftBox\",\"visible\":true,\"position\":\"stackedTL\"},{\"element\":\"taskbar\",\"visible\":true,\"position\":\"centerMonitor\"},{\"element\":\"centerBox\",\"visible\":false,\"position\":\"stackedBR\"},{\"element\":\"rightBox\",\"visible\":true,\"position\":\"stackedBR\"},{\"element\":\"dateMenu\",\"visible\":true,\"position\":\"stackedBR\"},{\"element\":\"systemMenu\",\"visible\":true,\"position\":\"stackedBR\"},{\"element\":\"desktopButton\",\"visible\":false,\"position\":\"stackedBR\"}]}'"
+  gs "$schema" dot-position "'BOTTOM'"
+  gs "$schema" dot-style-focused "'DOTS'"
+  gs "$schema" dot-style-unfocused "'DOTS'"
+  manual "Barra: si después de cerrar sesión no quedó abajo con las apps al centro, abrí Zorin Appearance, Diseño, y ajustala desde ahí. El menú de la derecha (WiFi, sonido, brillo) es el de GNOME, que ya usa botones redondeados como ChromeOS."
+}
+</script>
+
+<script type="text/plain" data-mod="look_wallpaper">
+
+mod_look_wallpaper() {
+  say "Fondo de pantalla estilo ChromeOS (versión clara y oscura)"
+  local dir="$HOME/.local/share/backgrounds"
+  put "$dir/chromeos-estilo-claro.svg" <<'EOF'
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef3fd"/><stop offset="1" stop-color="#dde7f6"/></linearGradient>
+    <radialGradient id="a"><stop offset="0" stop-color="#8ab4f8" stop-opacity=".85"/><stop offset="1" stop-color="#8ab4f8" stop-opacity="0"/></radialGradient>
+    <radialGradient id="b"><stop offset="0" stop-color="#81c995" stop-opacity=".7"/><stop offset="1" stop-color="#81c995" stop-opacity="0"/></radialGradient>
+    <radialGradient id="c"><stop offset="0" stop-color="#fdd663" stop-opacity=".7"/><stop offset="1" stop-color="#fdd663" stop-opacity="0"/></radialGradient>
+    <radialGradient id="d"><stop offset="0" stop-color="#f28b82" stop-opacity=".55"/><stop offset="1" stop-color="#f28b82" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <circle cx="1520" cy="260" r="720" fill="url(#a)"/>
+  <circle cx="280" cy="920" r="660" fill="url(#b)"/>
+  <circle cx="1120" cy="1010" r="520" fill="url(#c)"/>
+  <circle cx="240" cy="140" r="460" fill="url(#d)"/>
+</svg>
+EOF
+  put "$dir/chromeos-estilo-oscuro.svg" <<'EOF'
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1c2230"/><stop offset="1" stop-color="#0f131b"/></linearGradient>
+    <radialGradient id="a"><stop offset="0" stop-color="#4c7fd6" stop-opacity=".6"/><stop offset="1" stop-color="#4c7fd6" stop-opacity="0"/></radialGradient>
+    <radialGradient id="b"><stop offset="0" stop-color="#3f9a63" stop-opacity=".45"/><stop offset="1" stop-color="#3f9a63" stop-opacity="0"/></radialGradient>
+    <radialGradient id="c"><stop offset="0" stop-color="#c9a227" stop-opacity=".35"/><stop offset="1" stop-color="#c9a227" stop-opacity="0"/></radialGradient>
+    <radialGradient id="d"><stop offset="0" stop-color="#c25b53" stop-opacity=".35"/><stop offset="1" stop-color="#c25b53" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <circle cx="1520" cy="260" r="720" fill="url(#a)"/>
+  <circle cx="280" cy="920" r="660" fill="url(#b)"/>
+  <circle cx="1120" cy="1010" r="520" fill="url(#c)"/>
+  <circle cx="240" cy="140" r="460" fill="url(#d)"/>
+</svg>
+EOF
+  if [ "$TARGET" = mx ]; then
+    if [ "$DRY_RUN" = 1 ]; then
+      echo "[dry-run] xfconf-query -c xfce4-desktop: last-image = $dir/chromeos-estilo-claro.svg en cada monitor"
+    else
+      local props p
+      props="$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$' || true)"
+      if [ -z "$props" ]; then
+        manual "Fondo en MX: clic derecho en el escritorio, Configuración del escritorio, y elegí $dir/chromeos-estilo-claro.svg."
+      fi
+      for p in $props; do
+        xfconf-query -c xfce4-desktop -p "$p" -s "$dir/chromeos-estilo-claro.svg" || warn "No se pudo cambiar el fondo en $p"
+        xfconf-query -c xfce4-desktop -p "${p%last-image}image-style" -n -t int -s 5 2>/dev/null || true
+      done
+    fi
+  else
+    gs org.gnome.desktop.background picture-uri "'file://$dir/chromeos-estilo-claro.svg'"
+    gs org.gnome.desktop.background picture-uri-dark "'file://$dir/chromeos-estilo-oscuro.svg'"
+    gs org.gnome.desktop.background picture-options "'zoom'"
+    gs org.gnome.desktop.screensaver picture-uri "'file://$dir/chromeos-estilo-claro.svg'"
+  fi
+  manual "Fondo: el script deja un fondo propio inspirado en ChromeOS. Si preferís una foto o un fondo oficial que tengas guardado, elegilo con clic derecho en el escritorio, Cambiar fondo."
+}
+</script>
+
+<script type="text/plain" data-mod="look_font">
+
+mod_look_font() {
+  say "Letra Roboto en menús y ventanas"
+  run sudo apt-get install -y fonts-roboto
+  if [ "$TARGET" = mx ]; then
+    xfset xsettings /Gtk/FontName string 'Roboto 10'
+  else
+    gs org.gnome.desktop.interface font-name "'Roboto 11'"
+    gs org.gnome.desktop.interface document-font-name "'Roboto 11'"
+  fi
+}
+</script>
+
 <script type="text/plain" data-mod="look_scheme">
 
 mod_look_scheme() {
@@ -704,7 +817,7 @@ const PWAS = [
 
 const ORDER = ['region','chrome','chrome_autostart','pwas','onedrive','accounts','acc_cal','acc_contacts','acc_mail',
   'drv_fw','drv_hwe','drv_rtl','drv_bcm','drv_wifi_ps','drv_audio','zram','perf_anim','perf_tracker','perf_services',
-  'updates','look_icons','look_scheme','look_scroll','look_touchpad','look_keys','look_favs'];
+  'updates','look_shelf','look_wallpaper','look_font','look_icons','look_scheme','look_scroll','look_touchpad','look_keys','look_favs'];
 
 const SCHEMES = {system:'default', light:'prefer-light', dark:'prefer-dark'};
 const KEYMAPS = ['latam','es','none'];
@@ -715,13 +828,13 @@ const TARGETS = {
     name: 'Zorin OS Core (GNOME)',
     check: "grep -qi 'ubuntu' /etc/os-release || { echo 'Este script es para Zorin OS / Ubuntu.'; exit 1; }",
     keymap: function(km){ return 'gs org.gnome.desktop.input-sources sources "[(\'xkb\', \'' + km + '\')]"'; },
-    aspect: 'Aspecto: abrí Zorin Appearance y elegí un diseño con la barra abajo y los íconos centrados para acercarte al estilo de ChromeOS. Los cambios de esta sección se ven al cerrar sesión y volver a entrar.'
+    aspect: 'Aspecto: la barra, la letra y los íconos se ven completos al cerrar sesión y volver a entrar.'
   },
   mx: {
     name: 'MX Linux (XFCE)',
     check: "[ -r /etc/debian_version ] && command -v xfconf-query >/dev/null || { echo 'Este script es para MX Linux con XFCE.'; exit 1; }",
     keymap: function(km){ return 'xfset keyboard-layout /Default/XkbLayout string ' + km + '; run sudo localectl set-x11-keymap ' + km; },
-    aspect: 'Aspecto: el touchpad y el desplazamiento se activan al cerrar sesión y volver a entrar. Los íconos, los atajos y el efecto de composición se aplican al momento.'
+    aspect: 'Aspecto: el touchpad y el desplazamiento se activan al cerrar sesión y volver a entrar. La barra, el fondo, la letra, los íconos y los atajos se aplican al momento.'
   }
 };
 
@@ -799,7 +912,10 @@ function build(state, mods){
       {id:'acc_contacts', name:'Contactos de GNOME', desc:'Libreta de contactos sincronizada con la cuenta.', p:''},
       {id:'acc_mail', name:'Correo con Geary', desc:'Cliente de correo liviano. Gmail también queda disponible como app web.', p:''}
     ]},
-    {id:'look', title:'Aspecto y atajos', items:[
+    {id:'look', title:'Aspecto ChromeOS y atajos', items:[
+      {id:'look_shelf', name:'Barra estilo ChromeOS', desc:'Barra abajo con el menú de apps a la izquierda, las apps al centro y el reloj y el menú de sistema (WiFi, sonido, brillo) a la derecha. Ajusta la barra de Zorin.', dmx:'Pasa la barra de MX a horizontal, abajo y a lo ancho. El menú Whisker queda a la izquierda y se abre con la tecla Super. Centrar las apps se hace a mano: el script deja los pasos.', p:'r'},
+      {id:'look_wallpaper', name:'Fondo de pantalla estilo ChromeOS', desc:'Fondo propio con colores suaves, en versión clara y oscura (cambia sola con el tema). Los fondos oficiales de Google no se pueden incluir en el script.', dmx:'Fondo propio con colores suaves, inspirado en ChromeOS. Los fondos oficiales de Google no se pueden incluir en el script.', p:'r'},
+      {id:'look_font', name:'Letra Roboto', desc:'La tipografía de Android y de las versiones anteriores de ChromeOS, en menús y ventanas.', p:'r'},
       {id:'look_icons', name:'Íconos Papirus', desc:'Íconos planos y limpios, más cercanos a ChromeOS.', p:'r'},
       {id:'look_scheme', name:'Forzar tema claro u oscuro', desc:'Si lo dejás apagado, Zorin mantiene su configuración.', p:'', sub:'scheme'},
       {id:'look_scroll', name:'Desplazamiento natural en el touchpad', desc:'Dos dedos hacia arriba mueven la página hacia abajo, como en ChromeOS.', dmx:'Dos dedos hacia arriba mueven la página hacia abajo, como en ChromeOS. Se guarda en la configuración de Xorg.', p:'r'},
@@ -866,27 +982,6 @@ function build(state, mods){
       state.target = TARGETS[d.target] ? d.target : 'zorin';
       return true;
     } catch(e){ return false; }
-  }
-
-  function cfgCode(){
-    return 'zcos1:' + Array.from(state.on).join(',') + '|target=' + state.target + '|pwas=' + state.pwas.join(',') + '|scheme=' + state.scheme + '|keymap=' + state.keymap;
-  }
-  function loadCode(text){
-    var t = text.trim();
-    if (t.indexOf('zcos1:') !== 0) return false;
-    var parts = t.slice(6).split('|');
-    var on = (parts[0] || '').split(',').filter(function(id){ return IDS.indexOf(id) >= 0; });
-    var next = {on:new Set(on), pwas:state.pwas, scheme:state.scheme, keymap:state.keymap, target:'zorin'};
-    parts.slice(1).forEach(function(kv){
-      var i = kv.indexOf('='); if (i < 0) return;
-      var k = kv.slice(0,i), v = kv.slice(i+1);
-      if (k === 'target' && TARGETS[v]) next.target = v;
-      if (k === 'pwas') next.pwas = v.split(',').filter(function(id){ return PWAS.some(function(p){ return p.id === id; }); });
-      if (k === 'scheme' && SCHEMES[v]) next.scheme = v;
-      if (k === 'keymap' && KEYMAPS.indexOf(v) >= 0) next.keymap = v;
-    });
-    state = next;
-    return true;
   }
 
   function buildGroups(){
@@ -980,7 +1075,6 @@ function build(state, mods){
       });
     });
     save();
-    $('#cfgcode').value = cfgCode();
     paint();
   }
 
@@ -997,9 +1091,10 @@ function build(state, mods){
     $('#lines').textContent = text.split('\n').length - 1 + ' líneas';
     $('#pane-install').hidden = !isInstall;
     $('#pane-diag').hidden = isInstall;
-    $('#cfg').hidden = !isInstall;
     $('#copy').textContent = isInstall ? 'Copiar script' : 'Copiar diagnóstico';
     $('#barcopy').textContent = isInstall ? 'Copiar script' : 'Copiar diagnóstico';
+    $('#dl').textContent = isInstall ? 'Descargar script' : 'Descargar diagnóstico';
+    ['#dl', '#bardl'].forEach(function(id){ $(id).hidden = !dlReady; });
     if (isInstall) {
       var n = r.chosen.length;
       var s = '<span><b>' + n + '</b> ' + (n === 1 ? 'módulo' : 'módulos') + '</span>' +
@@ -1007,12 +1102,44 @@ function build(state, mods){
         '<span class="' + (r.reboot ? 'warn' : '') + '">' + (r.reboot ? 'Pide reiniciar' : 'No pide reiniciar') + '</span>';
       if (r.added.length) s += '<span>Incluye Chrome porque lo necesitan las apps web</span>';
       $('#sumline').innerHTML = s;
-      $('#how').innerHTML = 'Guardalo como <code>setup.sh</code>. Para probarlo sin cambiar nada: <code>DRY_RUN=1 bash setup.sh</code>. Para aplicarlo: <code>bash setup.sh</code>.';
+      var f = fileName('install');
+      $('#how').innerHTML = 'Descargalo o guardalo como <code>' + f + '</code>. Para probarlo sin cambiar nada: <code>DRY_RUN=1 bash ' + f + '</code>. Para aplicarlo: <code>bash ' + f + '</code>.';
       $('#barinfo').textContent = n + (n === 1 ? ' módulo' : ' módulos') + ' · ' + r.manual + ' a mano';
     } else {
-      $('#how').innerHTML = 'Guardalo como <code>diag.sh</code> y corré <code>bash diag.sh</code>. No instala ni modifica nada.';
+      var d = fileName('diag');
+      $('#how').innerHTML = 'Descargalo o guardalo como <code>' + d + '</code> y corré <code>bash ' + d + '</code>. No instala ni modifica nada.';
       $('#barinfo').textContent = 'Diagnóstico de hardware';
     }
+  }
+
+  // Descargas: publicado en claude.ai usa la capacidad "downloads" (no acepta .sh, por eso .txt);
+  // abierto como archivo local usa un enlace con blob.
+  var inArtifact = !!(window.claude && typeof window.claude.use === 'function');
+  var downloads = null, dlReady = !inArtifact;
+  if (inArtifact) {
+    window.claude.use('downloads').then(function(d){ downloads = d; dlReady = !!d; paint(); }, function(){});
+  }
+  function fileName(kind){
+    var ext = inArtifact ? '.txt' : '.sh';
+    if (kind === 'diag') return 'diag' + ext;
+    return 'setup' + ext;
+  }
+  function download(filename, text, okMsg){
+    if (downloads) {
+      downloads.save({filename:filename, data:text}).then(function(){ toast(okMsg); }, function(e){
+        var c = e && e.code;
+        if (c === 'declined') return;
+        if (c === 'rate_limited') toast('Ya hay una descarga esperando confirmación.');
+        else toast('No se pudo descargar. Usá Copiar.');
+      });
+      return;
+    }
+    var url = URL.createObjectURL(new Blob([text], {type:'text/plain;charset=utf-8'}));
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    toast(okMsg);
   }
 
   function toast(msg){
@@ -1058,10 +1185,8 @@ function build(state, mods){
   function doCopy(){ copy(current.text, $('#code'), tab === 'install' ? 'Script copiado' : 'Diagnóstico copiado'); }
   $('#copy').addEventListener('click', doCopy);
   $('#barcopy').addEventListener('click', doCopy);
-  $('#cfgcopy').addEventListener('click', function(){ copy($('#cfgcode').value, $('#cfgcode'), 'Código copiado'); });
-  $('#cfgload').addEventListener('click', function(){
-    if (loadCode($('#cfgcode').value)) { render(); toast('Configuración cargada'); }
-    else toast('El código no es válido. Tiene que empezar con zcos1:');
-  });
+  function doDownload(){ download(fileName(tab), current.text, tab === 'install' ? 'Script descargado' : 'Diagnóstico descargado'); }
+  $('#dl').addEventListener('click', doDownload);
+  $('#bardl').addEventListener('click', doDownload);
 })();
 </script>

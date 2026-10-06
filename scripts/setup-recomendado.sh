@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Script generado por "Panel ChromeOS en Zorin y MX"
 # Equipo: Philco N14P4020 (Celeron, 4 GB). Sistema: Zorin OS Core (GNOME).
-# Módulos: base, region, chrome, pwas, onedrive, accounts, drv_wifi_ps, zram, perf_anim, perf_tracker, updates, look_icons, look_scroll, look_touchpad, look_keys, look_favs
+# Módulos: base, region, chrome, pwas, onedrive, accounts, drv_wifi_ps, zram, perf_anim, perf_tracker, updates, look_shelf, look_wallpaper, look_font, look_icons, look_scroll, look_touchpad, look_keys, look_favs
 #
 # Uso:
 #   DRY_RUN=1 bash setup.sh   # muestra lo que haría, sin cambiar nada
@@ -210,6 +210,120 @@ mod_updates() {
 }
 
 
+mod_look_shelf() {
+  say "Barra estilo ChromeOS: abajo, menú a la izquierda, apps al centro, reloj y sistema a la derecha"
+  if [ "$TARGET" = mx ]; then
+    local id=1
+    if [ "$DRY_RUN" != 1 ]; then
+      id="$(xfconf-query -c xfce4-panel -p /panels 2>/dev/null | grep -E '^[0-9]+$' | head -n1)"
+      id="${id:-1}"
+    fi
+    xfset xfce4-panel "/panels/panel-$id/mode" uint 0
+    xfset xfce4-panel "/panels/panel-$id/position" string 'p=10;x=0;y=0'
+    xfset xfce4-panel "/panels/panel-$id/length" uint 100
+    xfset xfce4-panel "/panels/panel-$id/size" uint 48
+    xfset xfce4-panel "/panels/panel-$id/position-locked" bool true
+    xfset xfce4-keyboard-shortcuts /commands/custom/Super_L string xfce4-popup-whiskermenu
+    run xfce4-panel -r || true
+    manual "Barra en MX: si los elementos quedaron desordenados, abrí MX Tweak, pestaña Panel, elegí Horizontal y Abajo. Para centrar las apps como en ChromeOS: clic derecho en la barra, Panel, Preferencias del panel, Elementos, y agregá un Separador con la opción Expandir a cada lado de Botones de ventana."
+    return 0
+  fi
+  # Zorin usa su propia versión de dash-to-panel; se busca el esquema que exista
+  local schema=org.gnome.shell.extensions.zorin-taskbar s
+  if [ "$DRY_RUN" != 1 ]; then
+    schema=""
+    for s in org.gnome.shell.extensions.zorin-taskbar org.gnome.shell.extensions.dash-to-panel; do
+      if gsettings list-schemas 2>/dev/null | grep -qx "$s"; then schema="$s"; break; fi
+    done
+  fi
+  if [ -z "$schema" ]; then
+    warn "No se encontró la configuración de la barra de Zorin."
+    manual "Barra: abrí Zorin Appearance, Diseño, elegí la barra abajo y, en la configuración de la barra, centrá los íconos de las apps."
+    return 0
+  fi
+  gs "$schema" panel-position "'BOTTOM'"
+  gs "$schema" panel-positions "'{\"0\":\"BOTTOM\"}'"
+  gs "$schema" panel-size 48
+  gs "$schema" panel-sizes "'{\"0\":48}'"
+  gs "$schema" panel-element-positions "'{\"0\":[{\"element\":\"showAppsButton\",\"visible\":false,\"position\":\"stackedTL\"},{\"element\":\"activitiesButton\",\"visible\":false,\"position\":\"stackedTL\"},{\"element\":\"leftBox\",\"visible\":true,\"position\":\"stackedTL\"},{\"element\":\"taskbar\",\"visible\":true,\"position\":\"centerMonitor\"},{\"element\":\"centerBox\",\"visible\":false,\"position\":\"stackedBR\"},{\"element\":\"rightBox\",\"visible\":true,\"position\":\"stackedBR\"},{\"element\":\"dateMenu\",\"visible\":true,\"position\":\"stackedBR\"},{\"element\":\"systemMenu\",\"visible\":true,\"position\":\"stackedBR\"},{\"element\":\"desktopButton\",\"visible\":false,\"position\":\"stackedBR\"}]}'"
+  gs "$schema" dot-position "'BOTTOM'"
+  gs "$schema" dot-style-focused "'DOTS'"
+  gs "$schema" dot-style-unfocused "'DOTS'"
+  manual "Barra: si después de cerrar sesión no quedó abajo con las apps al centro, abrí Zorin Appearance, Diseño, y ajustala desde ahí. El menú de la derecha (WiFi, sonido, brillo) es el de GNOME, que ya usa botones redondeados como ChromeOS."
+}
+
+
+mod_look_wallpaper() {
+  say "Fondo de pantalla estilo ChromeOS (versión clara y oscura)"
+  local dir="$HOME/.local/share/backgrounds"
+  put "$dir/chromeos-estilo-claro.svg" <<'EOF'
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eef3fd"/><stop offset="1" stop-color="#dde7f6"/></linearGradient>
+    <radialGradient id="a"><stop offset="0" stop-color="#8ab4f8" stop-opacity=".85"/><stop offset="1" stop-color="#8ab4f8" stop-opacity="0"/></radialGradient>
+    <radialGradient id="b"><stop offset="0" stop-color="#81c995" stop-opacity=".7"/><stop offset="1" stop-color="#81c995" stop-opacity="0"/></radialGradient>
+    <radialGradient id="c"><stop offset="0" stop-color="#fdd663" stop-opacity=".7"/><stop offset="1" stop-color="#fdd663" stop-opacity="0"/></radialGradient>
+    <radialGradient id="d"><stop offset="0" stop-color="#f28b82" stop-opacity=".55"/><stop offset="1" stop-color="#f28b82" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <circle cx="1520" cy="260" r="720" fill="url(#a)"/>
+  <circle cx="280" cy="920" r="660" fill="url(#b)"/>
+  <circle cx="1120" cy="1010" r="520" fill="url(#c)"/>
+  <circle cx="240" cy="140" r="460" fill="url(#d)"/>
+</svg>
+EOF
+  put "$dir/chromeos-estilo-oscuro.svg" <<'EOF'
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1c2230"/><stop offset="1" stop-color="#0f131b"/></linearGradient>
+    <radialGradient id="a"><stop offset="0" stop-color="#4c7fd6" stop-opacity=".6"/><stop offset="1" stop-color="#4c7fd6" stop-opacity="0"/></radialGradient>
+    <radialGradient id="b"><stop offset="0" stop-color="#3f9a63" stop-opacity=".45"/><stop offset="1" stop-color="#3f9a63" stop-opacity="0"/></radialGradient>
+    <radialGradient id="c"><stop offset="0" stop-color="#c9a227" stop-opacity=".35"/><stop offset="1" stop-color="#c9a227" stop-opacity="0"/></radialGradient>
+    <radialGradient id="d"><stop offset="0" stop-color="#c25b53" stop-opacity=".35"/><stop offset="1" stop-color="#c25b53" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <circle cx="1520" cy="260" r="720" fill="url(#a)"/>
+  <circle cx="280" cy="920" r="660" fill="url(#b)"/>
+  <circle cx="1120" cy="1010" r="520" fill="url(#c)"/>
+  <circle cx="240" cy="140" r="460" fill="url(#d)"/>
+</svg>
+EOF
+  if [ "$TARGET" = mx ]; then
+    if [ "$DRY_RUN" = 1 ]; then
+      echo "[dry-run] xfconf-query -c xfce4-desktop: last-image = $dir/chromeos-estilo-claro.svg en cada monitor"
+    else
+      local props p
+      props="$(xfconf-query -c xfce4-desktop -l 2>/dev/null | grep '/last-image$' || true)"
+      if [ -z "$props" ]; then
+        manual "Fondo en MX: clic derecho en el escritorio, Configuración del escritorio, y elegí $dir/chromeos-estilo-claro.svg."
+      fi
+      for p in $props; do
+        xfconf-query -c xfce4-desktop -p "$p" -s "$dir/chromeos-estilo-claro.svg" || warn "No se pudo cambiar el fondo en $p"
+        xfconf-query -c xfce4-desktop -p "${p%last-image}image-style" -n -t int -s 5 2>/dev/null || true
+      done
+    fi
+  else
+    gs org.gnome.desktop.background picture-uri "'file://$dir/chromeos-estilo-claro.svg'"
+    gs org.gnome.desktop.background picture-uri-dark "'file://$dir/chromeos-estilo-oscuro.svg'"
+    gs org.gnome.desktop.background picture-options "'zoom'"
+    gs org.gnome.desktop.screensaver picture-uri "'file://$dir/chromeos-estilo-claro.svg'"
+  fi
+  manual "Fondo: el script deja un fondo propio inspirado en ChromeOS. Si preferís una foto o un fondo oficial que tengas guardado, elegilo con clic derecho en el escritorio, Cambiar fondo."
+}
+
+
+mod_look_font() {
+  say "Letra Roboto en menús y ventanas"
+  run sudo apt-get install -y fonts-roboto
+  if [ "$TARGET" = mx ]; then
+    xfset xsettings /Gtk/FontName string 'Roboto 10'
+  else
+    gs org.gnome.desktop.interface font-name "'Roboto 11'"
+    gs org.gnome.desktop.interface document-font-name "'Roboto 11'"
+  fi
+}
+
+
 mod_look_icons() {
   say "Íconos Papirus"
   run sudo apt-get install -y papirus-icon-theme
@@ -291,12 +405,15 @@ main() {
   mod_perf_anim
   mod_perf_tracker
   mod_updates
+  mod_look_shelf
+  mod_look_wallpaper
+  mod_look_font
   mod_look_icons
   mod_look_scroll
   mod_look_touchpad
   mod_look_keys
   mod_look_favs
-  manual "Aspecto: abrí Zorin Appearance y elegí un diseño con la barra abajo y los íconos centrados para acercarte al estilo de ChromeOS. Los cambios de esta sección se ven al cerrar sesión y volver a entrar."
+  manual "Aspecto: la barra, la letra y los íconos se ven completos al cerrar sesión y volver a entrar."
   finish
 }
 main "$@"

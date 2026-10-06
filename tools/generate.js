@@ -22,12 +22,12 @@ const gen = html.match(/<script id="gen">([\s\S]*?)<\/script>/)[1];
 const { build, PWAS, SCHEMES, KEYMAPS, TARGETS, ZORIN_ONLY } = new Function(gen + '; return { build, PWAS, SCHEMES, KEYMAPS, TARGETS, ZORIN_ONLY };')();
 
 // Debe coincidir con las marcas "p" del panel (r = recomendado, m = mínimo).
-const REC = ['chrome', 'pwas', 'onedrive', 'region', 'accounts', 'look_icons', 'look_scroll', 'look_touchpad',
+const REC = ['chrome', 'pwas', 'onedrive', 'region', 'accounts', 'look_shelf', 'look_wallpaper', 'look_font', 'look_icons', 'look_scroll', 'look_touchpad',
   'look_keys', 'look_favs', 'zram', 'perf_anim', 'perf_tracker', 'updates', 'drv_wifi_ps'];
 const MIN = ['chrome', 'region', 'zram', 'updates'];
 const ALL = ['region', 'chrome', 'chrome_autostart', 'pwas', 'onedrive', 'accounts', 'acc_cal', 'acc_contacts', 'acc_mail',
   'drv_fw', 'drv_hwe', 'drv_rtl', 'drv_bcm', 'drv_wifi_ps', 'drv_audio', 'zram', 'perf_anim', 'perf_tracker',
-  'perf_services', 'updates', 'updates_reboot', 'look_icons', 'look_scheme', 'look_scroll', 'look_touchpad',
+  'perf_services', 'updates', 'updates_reboot', 'look_shelf', 'look_wallpaper', 'look_font', 'look_icons', 'look_scheme', 'look_scroll', 'look_touchpad',
   'look_keys', 'look_favs'];
 const DEFAULT_PWAS = ['word', 'excel', 'powerpoint', 'gmail', 'gdrive'];
 

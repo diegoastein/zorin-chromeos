@@ -46,7 +46,7 @@ Pensado para una **Philco N14P4020** (Celeron de 2 núcleos, 4 GB de RAM, SSD de
 
 ## Armar un script a medida
 
-Con el panel: abrí `panel/index.html`, elegí el sistema, elegí módulos, copiá el script. El panel también muestra un código de configuración (empieza con `zcos1:`) que incluye el sistema.
+Con el panel: abrí `panel/index.html`, elegí el sistema y los módulos, y copiá o descargá el script.
 
 Desde la terminal:
 
@@ -54,10 +54,7 @@ Desde la terminal:
 node tools/generate.js --list                                  # módulos y sistemas disponibles
 node tools/generate.js --preset rec --out setup.sh             # un preset para Zorin
 node tools/generate.js --preset rec --target mx --out setup.sh # el mismo preset para MX Linux
-node tools/generate.js --code "zcos1:chrome,zram,updates|target=mx|pwas=word,excel|scheme=system|keymap=latam" --out setup.sh
 ```
-
-Si el código no trae `target=`, se asume Zorin, así que los códigos viejos siguen funcionando.
 
 ## Módulos
 
@@ -67,7 +64,7 @@ Si el código no trae `target=`, se asume Zorin, así que los códigos viejos si
 
 **Cuentas de Google:** Cuentas en línea de GNOME con Drive en el explorador, y opcionalmente Calendario, Contactos y Geary.
 
-**Aspecto y atajos:** íconos Papirus, tema claro u oscuro, desplazamiento natural, clic con toque, atajos tipo ChromeOS (captura con Ctrl+Shift+F5, ventanas a izquierda y derecha con Alt+[ y Alt+]) y apps ancladas.
+**Aspecto ChromeOS y atajos:** barra abajo con el menú de apps a la izquierda, las apps al centro y el reloj y el menú de sistema a la derecha, fondo de pantalla propio inspirado en ChromeOS (claro y oscuro), letra Roboto, íconos Papirus, tema claro u oscuro, desplazamiento natural, clic con toque, atajos tipo ChromeOS (captura con Ctrl+Shift+F5, ventanas a izquierda y derecha con Alt+[ y Alt+]) y apps ancladas.
 
 **Rendimiento:** zram, sin animaciones, sin indexación de archivos, servicios innecesarios apagados, actualizaciones automáticas (con reinicio nocturno opcional).
 
@@ -79,7 +76,8 @@ Si el código no trae `target=`, se asume Zorin, así que los códigos viejos si
 - El modo de prueba **no** confirma que cada paquete o repositorio exista en tu versión de Zorin o de MX. Esos puntos se probaron solo por lectura de documentación, no en una Zorin ni en una MX reales.
 - La variante de MX no se probó en una MX real. Las claves de `xfconf` (teclado, atajos de xfwm4, efecto de composición) y los paquetes de Debian (`zram-tools`, `xfce4-screenshooter`) salieron de la documentación. Hay que verificarlos en la primera instalación.
 - Los ajustes de GNOME se aplican solo si la clave existe en esa versión. Si no, el script avisa y sigue.
-- La barra inferior centrada no se puede fijar con seguridad por script. Se elige a mano en Zorin Appearance.
+- La barra estilo ChromeOS en Zorin ajusta la barra de Zorin (`zorin-taskbar`, derivada de dash-to-panel). Los nombres de las claves salen de dash-to-panel y no se verificaron en una Zorin real. Si una clave no existe, el script avisa y deja el paso manual en Zorin Appearance.
+- Los fondos oficiales de ChromeOS son de Google y no se incluyen. El script instala un fondo propio con colores parecidos.
 - Los lanzadores de apps web abren Chrome con `--app`. Para íconos propios, instalá cada una desde Chrome.
 
 ## Diferencias con MX Linux (XFCE)
@@ -93,6 +91,7 @@ Lo que cambia en XFCE:
 - **Atajos:** la captura usa `xfce4-screenshooter` y el acomodo de ventanas usa los atajos de xfwm4.
 - **Zram:** usa el paquete `zram-tools` en lugar de `systemd-zram-generator`.
 - **Barra de lanzadores:** no se ancla por script. El script deja los pasos a mano.
+- **Barra estilo ChromeOS:** la barra de MX pasa a horizontal, abajo y a lo ancho, y Super abre el menú Whisker. Centrar las apps requiere agregar separadores a mano (el script deja los pasos). XFCE no tiene un menú rápido como el de ChromeOS; a la derecha quedan la bandeja y el reloj.
 - **Drivers:** Realtek 8821CE y Broadcom no siempre están en los repositorios de Debian. Si la instalación falla, el script avisa y deja los pasos a mano sin cortarse.
 
 ## No incluido

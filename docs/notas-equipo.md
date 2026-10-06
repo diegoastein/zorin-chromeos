@@ -22,3 +22,4 @@ Sonido y conectividad. El diagnóstico (`scripts/diagnostico-hardware.sh`) tiene
 - Correr el diagnóstico en la notebook y decidir drivers según el resultado.
 - Probar el script recomendado en una instalación real y ajustar lo que falle.
 - Variante para MX Linux (XFCE): el panel y los scripts `*-mx.sh` ya están. Falta probarla en una MX real, sobre todo las claves de xfconf, los atajos de xfwm4 y el paquete de zram. Si 4 GB con GNOME se queda corto, MX es el plan B.
+- Barra estilo ChromeOS: verificar en Zorin que existan las claves de `org.gnome.shell.extensions.zorin-taskbar` (`panel-element-positions`, `panel-position` o `panel-positions`) y que el menú de Zorin quede a la izquierda. En MX, verificar el valor `p=10` de la posición del panel y el tipo de `length`.
