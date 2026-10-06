@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Script generado por "Panel ChromeOS en Zorin y MX"
-# Equipo: Philco N14P4020 (Celeron, 4 GB). Sistema: Zorin OS Core (GNOME).
-# Módulos: base, region, chrome, chrome_autostart, pwas, onedrive, accounts, acc_cal, acc_contacts, acc_mail, drv_fw, drv_hwe, drv_rtl, drv_bcm, drv_wifi_ps, drv_audio, zram, perf_anim, perf_tracker, perf_services, updates, look_icons, look_scheme, look_scroll, look_touchpad, look_keys, look_favs
+# Equipo: Philco N14P4020 (Celeron, 4 GB). Sistema: MX Linux (XFCE).
+# Módulos: base, region, chrome, pwas, onedrive, drv_wifi_ps, zram, perf_anim, updates, look_icons, look_scroll, look_touchpad, look_keys, look_favs
 #
 # Uso:
 #   DRY_RUN=1 bash setup.sh   # muestra lo que haría, sin cambiar nada
 #   bash setup.sh             # aplica los cambios (ejecutalo con tu usuario, no como root)
 set -euo pipefail
 DRY_RUN="${DRY_RUN:-0}"
-TARGET="zorin"
+TARGET="mx"
 
 
 say()  { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
@@ -49,7 +49,7 @@ xfset() {
 
 if [ "$DRY_RUN" != 1 ]; then
   [ "$(id -u)" -ne 0 ] || { echo "Ejecutá el script con tu usuario; usa sudo solo cuando hace falta."; exit 1; }
-  grep -qi 'ubuntu' /etc/os-release || { echo 'Este script es para Zorin OS / Ubuntu.'; exit 1; }
+  [ -r /etc/debian_version ] && command -v xfconf-query >/dev/null || { echo 'Este script es para MX Linux con XFCE.'; exit 1; }
   [ "$(uname -m)" = x86_64 ] || { echo "Este script es para equipos de 64 bits (x86_64)."; exit 1; }
   sudo -v
 fi
@@ -76,7 +76,7 @@ mod_region() {
     run sudo locale-gen es_AR.UTF-8
   fi
   run sudo update-locale LANG=es_AR.UTF-8
-  gs org.gnome.desktop.input-sources sources "[('xkb', 'latam')]"
+  xfset keyboard-layout /Default/XkbLayout string latam; run sudo localectl set-x11-keymap latam
   NEEDS_REBOOT=1
 }
 
@@ -89,18 +89,6 @@ mod_chrome() {
   run sudo apt-get install -y google-chrome-stable
   run xdg-settings set default-web-browser google-chrome.desktop || warn "No se pudo fijar Chrome como navegador predeterminado."
   manual "Chrome: abrilo e iniciá sesión con tu cuenta de Google para sincronizar extensiones y favoritos."
-}
-
-
-mod_chrome_autostart() {
-  say "Chrome se abre al iniciar sesión"
-  put "$HOME/.config/autostart/google-chrome.desktop" <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=Google Chrome
-Exec=google-chrome-stable
-X-GNOME-Autostart-enabled=true
-EOF
 }
 
 
@@ -122,14 +110,8 @@ mod_pwas() {
   make_pwa word "Word" "https://www.office.com/launch/word" x-office-document
   make_pwa excel "Excel" "https://www.office.com/launch/excel" x-office-spreadsheet
   make_pwa powerpoint "PowerPoint" "https://www.office.com/launch/powerpoint" x-office-presentation
-  make_pwa onedrive-web "OneDrive web" "https://onedrive.live.com/" folder-remote
-  make_pwa outlook "Outlook" "https://outlook.live.com/mail/" internet-mail
   make_pwa gmail "Gmail" "https://mail.google.com/" internet-mail
   make_pwa gdrive "Drive" "https://drive.google.com/" folder-remote
-  make_pwa gcal "Calendar" "https://calendar.google.com/" x-office-calendar
-  make_pwa gdocs "Docs" "https://docs.google.com/document/" x-office-document
-  make_pwa gsheets "Sheets" "https://docs.google.com/spreadsheets/" x-office-spreadsheet
-  make_pwa gslides "Slides" "https://docs.google.com/presentation/" x-office-presentation
   run update-desktop-database "$HOME/.local/share/applications" || true
   manual "Apps web: los lanzadores abren cada servicio en su propia ventana. Si querés íconos propios, instalá cada una desde Chrome (menú ⋮, Transmitir, guardar y compartir, Instalar página como app)."
 }
@@ -162,97 +144,10 @@ mod_onedrive() {
 }
 
 
-mod_accounts() {
-  say "Cuentas en línea y Google Drive en el explorador de archivos"
-  run sudo apt-get install -y gnome-online-accounts gnome-control-center gvfs-backends gvfs-fuse
-  run sudo apt-get install -y gnome-online-accounts-gtk || true
-  manual "Cuentas de Google: Configuración, Cuentas en línea, Google. Iniciá sesión y activá Archivos. Chrome sincroniza aparte con su propio inicio de sesión."
-}
-
-
-mod_acc_cal() {
-  say "Calendario de GNOME"
-  run sudo apt-get install -y gnome-calendar
-}
-
-
-mod_acc_contacts() {
-  say "Contactos de GNOME"
-  run sudo apt-get install -y gnome-contacts
-}
-
-
-mod_acc_mail() {
-  say "Correo (Geary)"
-  run sudo apt-get install -y geary
-}
-
-
-mod_drv_fw() {
-  say "Reinstalando el firmware de la placa (WiFi y audio)"
-  run sudo apt-get install -y --reinstall linux-firmware
-  run sudo update-initramfs -u
-  NEEDS_REBOOT=1
-}
-
-
-mod_drv_hwe() {
-  say "Kernel más nuevo (HWE) para mejor soporte de hardware"
-  case "$CODENAME" in
-    jammy) run sudo apt-get install -y linux-generic-hwe-22.04 ;;
-    noble) run sudo apt-get install -y linux-generic-hwe-24.04 ;;
-    *) warn "Versión de Ubuntu no reconocida; se omite el kernel HWE." ;;
-  esac
-  NEEDS_REBOOT=1
-}
-
-
-mod_drv_rtl() {
-  say "Driver Realtek 8821CE (solo si el chip está presente)"
-  if [ "$DRY_RUN" = 1 ] || lspci -nn 2>/dev/null | grep -qi '10ec:c821'; then
-    if [ "$TARGET" = mx ]; then
-      # En Debian/MX el paquete puede no estar: si falla, se deja la instalación a mano sin cortar el script
-      run sudo apt-get install -y dkms build-essential "linux-headers-$(uname -r)" rtl8821ce-dkms || { warn "rtl8821ce-dkms no está en los repositorios de MX."; manual "Driver Realtek 8821CE en MX: el paquete no vino en los repositorios. Instalalo siguiendo la guía de morrownr/8821ce en GitHub y reiniciá."; return 0; }
-    else
-      run sudo apt-get install -y dkms build-essential "linux-headers-$(uname -r)" rtl8821ce-dkms
-    fi
-    NEEDS_REBOOT=1
-    manual "Driver Realtek: si el equipo tiene Secure Boot, al reiniciar aparece una pantalla azul de MOK. Elegí Enroll MOK e ingresá la contraseña que te pidió la instalación."
-  else
-    warn "No se encontró un Realtek 8821CE en este equipo; se omite."
-  fi
-}
-
-
-mod_drv_bcm() {
-  say "Driver Broadcom de WiFi (solo si el chip está presente)"
-  if [ "$DRY_RUN" = 1 ] || lspci -nn 2>/dev/null | grep -iE 'network.*broadcom' >/dev/null; then
-    if [ "$TARGET" = mx ]; then
-      # En Debian este driver está en non-free: si no está habilitado, se avisa sin cortar el script
-      run sudo apt-get install -y bcmwl-kernel-source || { warn "bcmwl-kernel-source no está disponible."; manual "Driver Broadcom en MX: habilitá el repositorio non-free en /etc/apt/sources.list y después corré  sudo apt-get install bcmwl-kernel-source  y reiniciá."; return 0; }
-    else
-      run sudo apt-get install -y bcmwl-kernel-source
-    fi
-    NEEDS_REBOOT=1
-  else
-    warn "No se encontró una placa WiFi Broadcom; se omite."
-  fi
-}
-
-
 mod_drv_wifi_ps() {
   say "Desactivando el ahorro de energía del WiFi (evita cortes de conexión)"
   printf '[connection]\nwifi.powersave = 2\n' | put /etc/NetworkManager/conf.d/99-wifi-powersave-off.conf sudo
   NEEDS_REBOOT=1
-}
-
-
-mod_drv_audio() {
-  say "Audio: usar el driver clásico de Intel"
-  printf 'options snd-intel-dspcfg dsp_driver=1\n' | put /etc/modprobe.d/99-audio-clasico.conf sudo
-  run sudo update-initramfs -u
-  NEEDS_REBOOT=1
-  manual "Audio: si después de reiniciar sigue sin sonido, borrá /etc/modprobe.d/99-audio-clasico.conf, corré  sudo update-initramfs -u  y pasame la salida del diagnóstico."
 }
 
 
@@ -285,35 +180,13 @@ mod_perf_anim() {
 }
 
 
-mod_perf_tracker() {
-  say "Desactivando la indexación de archivos en segundo plano"
-  local u
-  for u in tracker-miner-fs-3 tracker-extract-3 localsearch-3 localsearch-extract-3; do
-    if [ "$DRY_RUN" = 1 ] || systemctl --user list-unit-files "$u.service" 2>/dev/null | grep -q "$u"; then
-      run systemctl --user mask "$u.service" || true
-    fi
-  done
-}
-
-
-mod_perf_services() {
-  say "Apagando servicios que no se usan (módem móvil y descubrimiento de impresoras)"
-  local s
-  for s in ModemManager cups-browsed; do
-    if [ "$DRY_RUN" = 1 ] || systemctl list-unit-files "$s.service" 2>/dev/null | grep -q "$s"; then
-      run sudo systemctl disable --now "$s.service" || true
-    fi
-  done
-}
-
-
 mod_updates() {
   say "Actualizaciones automáticas en segundo plano"
   run sudo apt-get install -y unattended-upgrades
   printf 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n' | put /etc/apt/apt.conf.d/20auto-upgrades sudo
   {
     printf 'Unattended-Upgrade::Allowed-Origins:: "Google LLC:stable";\n'
-    printf 'Unattended-Upgrade::Automatic-Reboot "true";\nUnattended-Upgrade::Automatic-Reboot-Time "04:00";\n'
+    printf 'Unattended-Upgrade::Automatic-Reboot "false";\n'
   } | put /etc/apt/apt.conf.d/52chromeos-like sudo
 }
 
@@ -326,12 +199,6 @@ mod_look_icons() {
   else
     gs org.gnome.desktop.interface icon-theme "'Papirus'"
   fi
-}
-
-
-mod_look_scheme() {
-  say "Tema claro u oscuro"
-  gs org.gnome.desktop.interface color-scheme "'default'"
 }
 
 
@@ -377,7 +244,7 @@ mod_look_favs() {
   if [ "$TARGET" = mx ]; then
     manual "Lanzadores en MX: clic derecho en la barra inferior, Panel, Agregar elementos, Lanzador. Después arrastrá Chrome, Archivos y las apps web que elegiste."
   else
-    gs org.gnome.shell favorite-apps "['google-chrome.desktop', 'org.gnome.Nautilus.desktop', 'pwa-word.desktop', 'pwa-excel.desktop', 'pwa-powerpoint.desktop', 'pwa-onedrive-web.desktop', 'pwa-outlook.desktop', 'pwa-gmail.desktop', 'pwa-gdrive.desktop', 'pwa-gcal.desktop', 'pwa-gdocs.desktop', 'pwa-gsheets.desktop', 'pwa-gslides.desktop', 'org.gnome.Settings.desktop']"
+    gs org.gnome.shell favorite-apps "['google-chrome.desktop', 'org.gnome.Nautilus.desktop', 'pwa-word.desktop', 'pwa-excel.desktop', 'pwa-powerpoint.desktop', 'pwa-gmail.desktop', 'pwa-gdrive.desktop', 'org.gnome.Settings.desktop']"
   fi
 }
 
@@ -397,31 +264,18 @@ main() {
   mod_base
   mod_region
   mod_chrome
-  mod_chrome_autostart
   mod_pwas
   mod_onedrive
-  mod_accounts
-  mod_acc_cal
-  mod_acc_contacts
-  mod_acc_mail
-  mod_drv_fw
-  mod_drv_hwe
-  mod_drv_rtl
-  mod_drv_bcm
   mod_drv_wifi_ps
-  mod_drv_audio
   mod_zram
   mod_perf_anim
-  mod_perf_tracker
-  mod_perf_services
   mod_updates
   mod_look_icons
-  mod_look_scheme
   mod_look_scroll
   mod_look_touchpad
   mod_look_keys
   mod_look_favs
-  manual "Aspecto: abrí Zorin Appearance y elegí un diseño con la barra abajo y los íconos centrados para acercarte al estilo de ChromeOS. Los cambios de esta sección se ven al cerrar sesión y volver a entrar."
+  manual "Aspecto: el touchpad y el desplazamiento se activan al cerrar sesión y volver a entrar. Los íconos, los atajos y el efecto de composición se aplican al momento."
   finish
 }
 main "$@"

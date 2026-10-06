@@ -1,4 +1,4 @@
-<title>Panel ChromeOS en Zorin</title>
+<title>Panel ChromeOS en Zorin y MX</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
@@ -80,6 +80,7 @@ h1{margin:0;font-family:var(--font-display);font-weight:700;font-size:clamp(1.9r
 .presets .lbl{font-size:13px;color:var(--muted);margin-right:4px}
 .chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:500;font-size:14px}
 .chip:hover{border-color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .chip:focus-visible,.btn:focus-visible,summary:focus-visible,.tab:focus-visible,select:focus-visible,.pchip:focus-within{outline:2px solid var(--accent);outline-offset:2px}
 
 .grid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start}
@@ -87,6 +88,7 @@ h1{margin:0;font-family:var(--font-display);font-weight:700;font-size:clamp(1.9r
 
 .groups{display:flex;flex-direction:column;gap:12px;min-width:0}
 details.group{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+details.group[hidden],.item[hidden]{display:none}
 details.group>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;cursor:pointer}
 details.group>summary::-webkit-details-marker{display:none}
 .g-title{font-family:var(--font-display);font-weight:600;font-size:1.05rem}
@@ -149,9 +151,9 @@ pre.code .cm{color:var(--code-dim)}
 
 <div class="wrap">
   <header class="top">
-    <p class="eyebrow">Zorin OS Core · GNOME</p>
-    <h1>Panel ChromeOS en Zorin</h1>
-    <p class="lead">Elegí qué querés en la notebook y el panel arma el script de instalación. Cada opción es un módulo independiente y el script tiene modo de prueba que no cambia nada.</p>
+    <p class="eyebrow" id="eyebrow">Zorin OS Core · GNOME</p>
+    <h1>Panel ChromeOS en Zorin y MX</h1>
+    <p class="lead">Elegí el sistema, después qué querés en la notebook. El panel arma el script de instalación. Cada opción es un módulo independiente y el script tiene modo de prueba que no cambia nada.</p>
     <dl class="spec">
       <div><dt>Equipo</dt><dd>Philco N14P4020</dd></div>
       <div><dt>Procesador</dt><dd>Celeron, 2 núcleos</dd></div>
@@ -159,6 +161,12 @@ pre.code .cm{color:var(--code-dim)}
       <div><dt>Disco</dt><dd>SSD 128 GB</dd></div>
     </dl>
   </header>
+
+  <div class="presets" role="group" aria-label="Sistema">
+    <span class="lbl">Sistema</span>
+    <button class="chip" type="button" data-target="zorin" aria-pressed="true">Zorin OS · GNOME</button>
+    <button class="chip" type="button" data-target="mx" aria-pressed="false">MX Linux · XFCE</button>
+  </div>
 
   <div class="presets" role="group" aria-label="Combinaciones rápidas">
     <span class="lbl">Empezar con</span>
@@ -205,7 +213,7 @@ pre.code .cm{color:var(--code-dim)}
     </section>
   </div>
 
-  <p class="notin">Fuera del panel por ahora: OnlyOffice, Waydroid (apps Android, pesado con 4 GB) y MX Linux. El script asume Zorin OS Core o cualquier Ubuntu con GNOME.</p>
+  <p class="notin" id="notin"></p>
 </div>
 
 <div class="bar">
@@ -217,8 +225,8 @@ pre.code .cm{color:var(--code-dim)}
 <!-- ===== Módulos de bash (datos, no se ejecutan en la página) ===== -->
 <script type="text/plain" data-mod="header">
 #!/usr/bin/env bash
-# Script generado por "Panel ChromeOS en Zorin"
-# Equipo: Philco N14P4020 (Celeron, 4 GB). Sistema: Zorin OS Core / Ubuntu con GNOME.
+# Script generado por "Panel ChromeOS en Zorin y MX"
+# Equipo: Philco N14P4020 (Celeron, 4 GB). Sistema: @@TARGETNAME@@.
 # Módulos: @@MODULES@@
 #
 # Uso:
@@ -226,6 +234,7 @@ pre.code .cm{color:var(--code-dim)}
 #   bash setup.sh             # aplica los cambios (ejecutalo con tu usuario, no como root)
 set -euo pipefail
 DRY_RUN="${DRY_RUN:-0}"
+TARGET="@@TARGET@@"
 </script>
 
 <script type="text/plain" data-mod="helpers">
@@ -260,14 +269,19 @@ gs() {
     warn "Ajuste no disponible en esta versión: $1 $2"
   fi
 }
+# xfset CANAL PROPIEDAD TIPO VALOR: ajusta una opción de XFCE (xfconf) en la sesión actual
+xfset() {
+  if [ "$DRY_RUN" = 1 ]; then echo "[dry-run] xfconf-query -c $1 -p $2 -t $3 -s $4"; return 0; fi
+  xfconf-query -c "$1" -p "$2" -n -t "$3" -s "$4" 2>/dev/null || warn "No se pudo aplicar $1 $2 (¿la sesión de XFCE está abierta?)"
+}
 
 if [ "$DRY_RUN" != 1 ]; then
   [ "$(id -u)" -ne 0 ] || { echo "Ejecutá el script con tu usuario; usa sudo solo cuando hace falta."; exit 1; }
-  grep -qi 'ubuntu' /etc/os-release || { echo "Este script es para Zorin OS / Ubuntu."; exit 1; }
+  @@OSCHECK@@
   [ "$(uname -m)" = x86_64 ] || { echo "Este script es para equipos de 64 bits (x86_64)."; exit 1; }
   sudo -v
 fi
-CODENAME="$(. /etc/os-release; echo "${UBUNTU_CODENAME:-}")"
+CODENAME="$(. /etc/os-release; echo "${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}")"
 
 mod_base() {
   say "Actualizando el sistema"
@@ -297,8 +311,14 @@ finish() {
 mod_region() {
   say "Idioma, zona horaria y teclado de Argentina"
   run sudo timedatectl set-timezone America/Argentina/Buenos_Aires
-  run sudo apt-get install -y language-pack-es language-pack-gnome-es
-  run sudo locale-gen es_AR.UTF-8
+  if [ "$TARGET" = mx ]; then
+    run sudo apt-get install -y locales
+    run sudo sed -i 's/^# *es_AR.UTF-8 UTF-8/es_AR.UTF-8 UTF-8/' /etc/locale.gen
+    run sudo locale-gen
+  else
+    run sudo apt-get install -y language-pack-es language-pack-gnome-es
+    run sudo locale-gen es_AR.UTF-8
+  fi
   run sudo update-locale LANG=es_AR.UTF-8
   @@KEYMAPLINE@@
   NEEDS_REBOOT=1
@@ -359,19 +379,21 @@ mod_pwas() {
 
 mod_onedrive() {
   say "Instalando onedriver (OneDrive como carpeta)"
-  local ver=""
+  local repo=""
   case "$CODENAME" in
-    focal) ver="20.04" ;;
-    jammy) ver="22.04" ;;
-    noble) ver="24.04" ;;
+    focal) repo="xUbuntu_20.04" ;;
+    jammy) repo="xUbuntu_22.04" ;;
+    noble) repo="xUbuntu_24.04" ;;
+    bookworm) repo="Debian_12" ;;
+    trixie) repo="Debian_13" ;;
   esac
-  if [ -z "$ver" ]; then
-    if [ "$DRY_RUN" = 1 ]; then ver="24.04"; else
-      warn "Versión de Ubuntu no reconocida; se omite onedriver. Instalalo desde https://github.com/jstaf/onedriver y montalo en ~/OneDrive."
+  if [ -z "$repo" ]; then
+    if [ "$DRY_RUN" = 1 ]; then repo="xUbuntu_24.04"; else
+      warn "Versión no reconocida; se omite onedriver. Instalalo desde https://github.com/jstaf/onedriver y montalo en ~/OneDrive."
       return 0
     fi
   fi
-  local base="https://download.opensuse.org/repositories/home:/jstaf/xUbuntu_$ver"
+  local base="https://download.opensuse.org/repositories/home:/jstaf/$repo"
   sh_c "curl -fsSL '$base/Release.key' | sudo gpg --batch --yes --dearmor -o /etc/apt/keyrings/onedriver.gpg"
   echo "deb [signed-by=/etc/apt/keyrings/onedriver.gpg] $base/ /" | put /etc/apt/sources.list.d/onedriver.list sudo
   run sudo apt-get update
@@ -444,7 +466,12 @@ mod_drv_hwe() {
 mod_drv_rtl() {
   say "Driver Realtek 8821CE (solo si el chip está presente)"
   if [ "$DRY_RUN" = 1 ] || lspci -nn 2>/dev/null | grep -qi '10ec:c821'; then
-    run sudo apt-get install -y dkms build-essential "linux-headers-$(uname -r)" rtl8821ce-dkms
+    if [ "$TARGET" = mx ]; then
+      # En Debian/MX el paquete puede no estar: si falla, se deja la instalación a mano sin cortar el script
+      run sudo apt-get install -y dkms build-essential "linux-headers-$(uname -r)" rtl8821ce-dkms || { warn "rtl8821ce-dkms no está en los repositorios de MX."; manual "Driver Realtek 8821CE en MX: el paquete no vino en los repositorios. Instalalo siguiendo la guía de morrownr/8821ce en GitHub y reiniciá."; return 0; }
+    else
+      run sudo apt-get install -y dkms build-essential "linux-headers-$(uname -r)" rtl8821ce-dkms
+    fi
     NEEDS_REBOOT=1
     manual "Driver Realtek: si el equipo tiene Secure Boot, al reiniciar aparece una pantalla azul de MOK. Elegí Enroll MOK e ingresá la contraseña que te pidió la instalación."
   else
@@ -458,7 +485,12 @@ mod_drv_rtl() {
 mod_drv_bcm() {
   say "Driver Broadcom de WiFi (solo si el chip está presente)"
   if [ "$DRY_RUN" = 1 ] || lspci -nn 2>/dev/null | grep -iE 'network.*broadcom' >/dev/null; then
-    run sudo apt-get install -y bcmwl-kernel-source
+    if [ "$TARGET" = mx ]; then
+      # En Debian este driver está en non-free: si no está habilitado, se avisa sin cortar el script
+      run sudo apt-get install -y bcmwl-kernel-source || { warn "bcmwl-kernel-source no está disponible."; manual "Driver Broadcom en MX: habilitá el repositorio non-free en /etc/apt/sources.list y después corré  sudo apt-get install bcmwl-kernel-source  y reiniciá."; return 0; }
+    else
+      run sudo apt-get install -y bcmwl-kernel-source
+    fi
     NEEDS_REBOOT=1
   else
     warn "No se encontró una placa WiFi Broadcom; se omite."
@@ -490,12 +522,18 @@ mod_drv_audio() {
 
 mod_zram() {
   say "Activando zram (memoria comprimida) y ajustes de memoria"
-  run sudo apt-get install -y systemd-zram-generator
-  printf '[zram0]\nzram-size = ram\ncompression-algorithm = zstd\nswap-priority = 100\n' | put /etc/systemd/zram-generator.conf sudo
+  if [ "$TARGET" = mx ]; then
+    run sudo apt-get install -y zram-tools
+    printf 'ALGO=zstd\nPERCENT=100\n' | put /etc/default/zramswap sudo
+    run sudo systemctl enable --now zramswap.service || warn "zram se activa después de reiniciar."
+  else
+    run sudo apt-get install -y systemd-zram-generator
+    printf '[zram0]\nzram-size = ram\ncompression-algorithm = zstd\nswap-priority = 100\n' | put /etc/systemd/zram-generator.conf sudo
+    run sudo systemctl daemon-reload
+    run sudo systemctl start systemd-zram-setup@zram0.service || warn "zram se activa después de reiniciar."
+  fi
   printf 'vm.swappiness = 100\nvm.page-cluster = 0\nvm.vfs_cache_pressure = 50\n' | put /etc/sysctl.d/99-zram.conf sudo
   run sudo sysctl --system
-  run sudo systemctl daemon-reload
-  run sudo systemctl start systemd-zram-setup@zram0.service || warn "zram se activa después de reiniciar."
   NEEDS_REBOOT=1
 }
 </script>
@@ -503,8 +541,13 @@ mod_zram() {
 <script type="text/plain" data-mod="perf_anim">
 
 mod_perf_anim() {
-  say "Desactivando animaciones del escritorio"
-  gs org.gnome.desktop.interface enable-animations false
+  if [ "$TARGET" = mx ]; then
+    say "Desactivando los efectos de composición de XFCE (ventanas más livianas)"
+    xfset xfwm4 /general/use_compositing bool false
+  else
+    say "Desactivando animaciones del escritorio"
+    gs org.gnome.desktop.interface enable-animations false
+  fi
 }
 </script>
 
@@ -552,7 +595,11 @@ mod_updates() {
 mod_look_icons() {
   say "Íconos Papirus"
   run sudo apt-get install -y papirus-icon-theme
-  gs org.gnome.desktop.interface icon-theme "'Papirus'"
+  if [ "$TARGET" = mx ]; then
+    xfset xsettings /Net/IconThemeName string Papirus
+  else
+    gs org.gnome.desktop.interface icon-theme "'Papirus'"
+  fi
 }
 </script>
 
@@ -568,7 +615,11 @@ mod_look_scheme() {
 
 mod_look_scroll() {
   say "Desplazamiento natural del touchpad"
-  gs org.gnome.desktop.peripherals.touchpad natural-scroll true
+  if [ "$TARGET" = mx ]; then
+    printf 'Section "InputClass"\n    Identifier "touchpad natural scroll"\n    MatchIsTouchpad "on"\n    Driver "libinput"\n    Option "NaturalScrolling" "true"\nEndSection\n' | put /etc/X11/xorg.conf.d/40-touchpad-scroll.conf sudo
+  else
+    gs org.gnome.desktop.peripherals.touchpad natural-scroll true
+  fi
 }
 </script>
 
@@ -576,9 +627,13 @@ mod_look_scroll() {
 
 mod_look_touchpad() {
   say "Touchpad: tocar para hacer clic y clic derecho con dos dedos"
-  gs org.gnome.desktop.peripherals.touchpad tap-to-click true
-  gs org.gnome.desktop.peripherals.touchpad two-finger-scrolling-enabled true
-  gs org.gnome.desktop.peripherals.touchpad click-method "'fingers'"
+  if [ "$TARGET" = mx ]; then
+    printf 'Section "InputClass"\n    Identifier "touchpad tap"\n    MatchIsTouchpad "on"\n    Driver "libinput"\n    Option "Tapping" "on"\n    Option "ClickMethod" "clickfinger"\nEndSection\n' | put /etc/X11/xorg.conf.d/40-touchpad-tap.conf sudo
+  else
+    gs org.gnome.desktop.peripherals.touchpad tap-to-click true
+    gs org.gnome.desktop.peripherals.touchpad two-finger-scrolling-enabled true
+    gs org.gnome.desktop.peripherals.touchpad click-method "'fingers'"
+  fi
 }
 </script>
 
@@ -586,9 +641,16 @@ mod_look_touchpad() {
 
 mod_look_keys() {
   say "Atajos de teclado tipo ChromeOS"
-  gs org.gnome.shell.keybindings show-screenshot-ui "['<Primary><Shift>F5', 'Print']"
-  gs org.gnome.mutter.keybindings toggle-tiled-left "['<Alt>bracketleft', '<Super>Left']"
-  gs org.gnome.mutter.keybindings toggle-tiled-right "['<Alt>bracketright', '<Super>Right']"
+  if [ "$TARGET" = mx ]; then
+    run sudo apt-get install -y xfce4-screenshooter
+    xfset xfce4-keyboard-shortcuts '/commands/custom/<Primary><Shift>F5' string 'xfce4-screenshooter -r'
+    xfset xfce4-keyboard-shortcuts '/xfwm4/custom/<Alt>bracketleft' string tile_left_key
+    xfset xfce4-keyboard-shortcuts '/xfwm4/custom/<Alt>bracketright' string tile_right_key
+  else
+    gs org.gnome.shell.keybindings show-screenshot-ui "['<Primary><Shift>F5', 'Print']"
+    gs org.gnome.mutter.keybindings toggle-tiled-left "['<Alt>bracketleft', '<Super>Left']"
+    gs org.gnome.mutter.keybindings toggle-tiled-right "['<Alt>bracketright', '<Super>Right']"
+  fi
 }
 </script>
 
@@ -596,7 +658,11 @@ mod_look_keys() {
 
 mod_look_favs() {
   say "Apps ancladas en la barra"
-  gs org.gnome.shell favorite-apps "[@@FAVS@@]"
+  if [ "$TARGET" = mx ]; then
+    manual "Lanzadores en MX: clic derecho en la barra inferior, Panel, Agregar elementos, Lanzador. Después arrastrá Chrome, Archivos y las apps web que elegiste."
+  else
+    gs org.gnome.shell favorite-apps "[@@FAVS@@]"
+  fi
 }
 </script>
 
@@ -642,12 +708,30 @@ const ORDER = ['region','chrome','chrome_autostart','pwas','onedrive','accounts'
 
 const SCHEMES = {system:'default', light:'prefer-light', dark:'prefer-dark'};
 const KEYMAPS = ['latam','es','none'];
+// Módulos que solo tienen sentido en Zorin (GNOME, Ubuntu): en MX no se ofrecen ni se incluyen
+const ZORIN_ONLY = ['accounts','acc_cal','acc_contacts','acc_mail','drv_hwe','perf_tracker','look_scheme'];
+const TARGETS = {
+  zorin: {
+    name: 'Zorin OS Core (GNOME)',
+    check: "grep -qi 'ubuntu' /etc/os-release || { echo 'Este script es para Zorin OS / Ubuntu.'; exit 1; }",
+    keymap: function(km){ return 'gs org.gnome.desktop.input-sources sources "[(\'xkb\', \'' + km + '\')]"'; },
+    aspect: 'Aspecto: abrí Zorin Appearance y elegí un diseño con la barra abajo y los íconos centrados para acercarte al estilo de ChromeOS. Los cambios de esta sección se ven al cerrar sesión y volver a entrar.'
+  },
+  mx: {
+    name: 'MX Linux (XFCE)',
+    check: "[ -r /etc/debian_version ] && command -v xfconf-query >/dev/null || { echo 'Este script es para MX Linux con XFCE.'; exit 1; }",
+    keymap: function(km){ return 'xfset keyboard-layout /Default/XkbLayout string ' + km + '; run sudo localectl set-x11-keymap ' + km; },
+    aspect: 'Aspecto: el touchpad y el desplazamiento se activan al cerrar sesión y volver a entrar. Los íconos, los atajos y el efecto de composición se aplican al momento.'
+  }
+};
 
 function build(state, mods){
   const on = new Set(state.on);
   const added = [];
+  const target = TARGETS[state.target] ? state.target : 'zorin';
+  const T = TARGETS[target];
   if ((on.has('pwas') || on.has('chrome_autostart')) && !on.has('chrome')) { on.add('chrome'); added.push('chrome'); }
-  const chosen = ORDER.filter(id => on.has(id));
+  const chosen = ORDER.filter(id => on.has(id) && (target === 'zorin' || ZORIN_ONLY.indexOf(id) < 0));
   const pwas = PWAS.filter(p => (state.pwas || []).indexOf(p.id) >= 0);
   const scheme = SCHEMES[state.scheme] || 'default';
   const keymap = KEYMAPS.indexOf(state.keymap) >= 0 ? state.keymap : 'latam';
@@ -659,7 +743,10 @@ function build(state, mods){
 
   const vals = {
     MODULES: ['base'].concat(chosen).join(', '),
-    KEYMAPLINE: keymap === 'none' ? 'true' : 'gs org.gnome.desktop.input-sources sources "[(\'xkb\', \'' + keymap + '\')]"',
+    TARGET: target,
+    TARGETNAME: T.name,
+    OSCHECK: T.check,
+    KEYMAPLINE: keymap === 'none' ? 'true' : T.keymap(keymap),
     PWALIST: pwas.length
       ? pwas.map(p => '  make_pwa ' + p.id + ' "' + p.name + '" "' + p.url + '" ' + p.icon).join('\n')
       : '  true',
@@ -679,7 +766,7 @@ function build(state, mods){
   const hasLook = chosen.some(id => id.indexOf('look_') === 0);
   const main = ['main() {', '  mod_base'];
   chosen.forEach(id => main.push('  mod_' + id));
-  if (hasLook) main.push('  manual "Aspecto: abrí Zorin Appearance y elegí un diseño con la barra abajo y los íconos centrados para acercarte al estilo de ChromeOS. Los cambios de esta sección se ven al cerrar sesión y volver a entrar."');
+  if (hasLook) main.push('  manual "' + T.aspect + '"');
   main.push('  finish', '}', 'main "$@"');
   parts.push(main.join('\n'));
 
@@ -715,14 +802,14 @@ function build(state, mods){
     {id:'look', title:'Aspecto y atajos', items:[
       {id:'look_icons', name:'Íconos Papirus', desc:'Íconos planos y limpios, más cercanos a ChromeOS.', p:'r'},
       {id:'look_scheme', name:'Forzar tema claro u oscuro', desc:'Si lo dejás apagado, Zorin mantiene su configuración.', p:'', sub:'scheme'},
-      {id:'look_scroll', name:'Desplazamiento natural en el touchpad', desc:'Dos dedos hacia arriba mueven la página hacia abajo, como en ChromeOS.', p:'r'},
-      {id:'look_touchpad', name:'Touchpad: tocar para hacer clic', desc:'Un toque es clic y dos dedos son clic derecho.', p:'r'},
-      {id:'look_keys', name:'Atajos tipo ChromeOS', desc:'Ctrl+Shift+F5 captura la pantalla. Alt+[ y Alt+] acomodan la ventana a la izquierda o a la derecha.', p:'r'},
-      {id:'look_favs', name:'Anclar apps en la barra', desc:'Chrome, Archivos, las apps web elegidas y Configuración.', p:'r'}
+      {id:'look_scroll', name:'Desplazamiento natural en el touchpad', desc:'Dos dedos hacia arriba mueven la página hacia abajo, como en ChromeOS.', dmx:'Dos dedos hacia arriba mueven la página hacia abajo, como en ChromeOS. Se guarda en la configuración de Xorg.', p:'r'},
+      {id:'look_touchpad', name:'Touchpad: tocar para hacer clic', desc:'Un toque es clic y dos dedos son clic derecho.', dmx:'Un toque es clic y dos dedos son clic derecho. Se guarda en la configuración de Xorg.', p:'r'},
+      {id:'look_keys', name:'Atajos tipo ChromeOS', desc:'Ctrl+Shift+F5 captura la pantalla. Alt+[ y Alt+] acomodan la ventana a la izquierda o a la derecha.', dmx:'Ctrl+Shift+F5 captura una región de la pantalla (instala xfce4-screenshooter). Alt+[ y Alt+] acomodan la ventana a la izquierda o a la derecha.', p:'r'},
+      {id:'look_favs', name:'Anclar apps en la barra', desc:'Chrome, Archivos, las apps web elegidas y Configuración.', dmx:'En XFCE no se anclan por script: el script te deja la lista de pasos para agregar los lanzadores al panel.', p:'r'}
     ]},
     {id:'perf', title:'Rendimiento y actualizaciones', items:[
-      {id:'zram', name:'zram: memoria comprimida', desc:'Usa parte de la RAM como swap comprimido. Es el ajuste que más ayuda con 4 GB.', p:'rm'},
-      {id:'perf_anim', name:'Sin animaciones del escritorio', desc:'Ventanas y menús responden más rápido en un Celeron.', p:'r'},
+      {id:'zram', name:'zram: memoria comprimida', desc:'Usa parte de la RAM como swap comprimido. Es el ajuste que más ayuda con 4 GB.', dmx:'Usa parte de la RAM como swap comprimido (paquete zram-tools). Es el ajuste que más ayuda con 4 GB.', p:'rm'},
+      {id:'perf_anim', name:'Sin animaciones del escritorio', desc:'Ventanas y menús responden más rápido en un Celeron.', dmx:'Apaga el efecto de composición de XFCE: ventanas y menús responden más rápido en un Celeron. Se pierden las sombras y transparencias.', p:'r'},
       {id:'perf_tracker', name:'Sin indexación de archivos', desc:'Apaga el buscador interno que lee el disco en segundo plano. La búsqueda de archivos del menú se vuelve más limitada.', p:'r'},
       {id:'perf_services', name:'Apagar servicios que no usás', desc:'Módem móvil y descubrimiento automático de impresoras de red.', p:''},
       {id:'updates', name:'Actualizaciones automáticas', desc:'Instala parches del sistema y de Chrome sin pedirte nada.', p:'rm'},
@@ -731,8 +818,8 @@ function build(state, mods){
     {id:'hw', title:'Sonido y WiFi', hint:'Probá primero desde el pendrive. Activá solo lo que haga falta según el diagnóstico.', items:[
       {id:'drv_wifi_ps', name:'WiFi sin ahorro de energía', desc:'Corrige cortes y lentitud frecuentes en placas Realtek.', p:'r'},
       {id:'drv_fw', name:'Reinstalar el firmware de la placa', desc:'Útil si el sistema dice que falta firmware de WiFi o audio.', p:''},
-      {id:'drv_rtl', name:'Driver Realtek 8821CE', desc:'El script verifica que el chip exista antes de instalar.', p:'', tag:'según diagnóstico'},
-      {id:'drv_bcm', name:'Driver Broadcom de WiFi', desc:'El script verifica que la placa exista antes de instalar.', p:'', tag:'según diagnóstico'},
+      {id:'drv_rtl', name:'Driver Realtek 8821CE', desc:'El script verifica que el chip exista antes de instalar.', dmx:'El script verifica que el chip exista. En MX el paquete puede no estar en los repositorios: si falla, deja los pasos a mano.', p:'', tag:'según diagnóstico'},
+      {id:'drv_bcm', name:'Driver Broadcom de WiFi', desc:'El script verifica que la placa exista antes de instalar.', dmx:'El script verifica que la placa exista. En MX este driver está en non-free: si no está habilitado, deja los pasos a mano.', p:'', tag:'según diagnóstico'},
       {id:'drv_hwe', name:'Kernel más nuevo (HWE)', desc:'Mejor soporte para hardware reciente. Descarga más datos.', p:'', tag:'según diagnóstico'},
       {id:'drv_audio', name:'Audio con driver clásico de Intel', desc:'Solo si no hay sonido con la configuración predeterminada.', p:'', tag:'según diagnóstico'}
     ]}
@@ -742,24 +829,30 @@ function build(state, mods){
   var IDS = ITEMS.map(function(i){ return i.id; }).concat(['updates_reboot']);
   var KEY = 'zcos-panel-v1';
   var DEFAULT_PWAS = ['word','excel','powerpoint','gmail','gdrive'];
+  var TEXT = {
+    zorin: {eyebrow:'Zorin OS Core · GNOME', notin:'Fuera del panel por ahora: OnlyOffice y Waydroid (apps Android, pesado con 4 GB). Las cuentas en línea y los ajustes de GNOME solo existen en Zorin.'},
+    mx: {eyebrow:'MX Linux · XFCE', notin:'Fuera del panel para MX: cuentas en línea y Drive en el explorador (son de GNOME), los módulos de GNOME Calendario, Contactos y Correo, el kernel HWE de Ubuntu y el modo claro u oscuro (depende del tema GTK). Las apps web cubren Gmail, Drive y Calendar.'}
+  };
 
-  var state = {on:new Set(), pwas:DEFAULT_PWAS.slice(), scheme:'system', keymap:'latam'};
+  var state = {on:new Set(), pwas:DEFAULT_PWAS.slice(), scheme:'system', keymap:'latam', target:'zorin'};
   var tab = 'install';
   var mods = {};
   document.querySelectorAll('script[type="text/plain"][data-mod]').forEach(function(s){ mods[s.getAttribute('data-mod')] = s.textContent; });
 
   function $(s){ return document.querySelector(s); }
   function esc(t){ return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  // Un módulo se ofrece si el sistema elegido lo soporta (ZORIN_ONLY sale del generador)
+  function applicable(id){ return state.target === 'zorin' || ZORIN_ONLY.indexOf(id) < 0; }
   function applyPreset(p){
     state.on = new Set();
     ITEMS.forEach(function(i){
-      if (p === 'all' || (p !== 'none' && i.p.indexOf(p) >= 0)) state.on.add(i.id);
+      if (applicable(i.id) && (p === 'all' || (p !== 'none' && i.p.indexOf(p) >= 0))) state.on.add(i.id);
     });
     render();
   }
 
   function save(){
-    try { localStorage.setItem(KEY, JSON.stringify({on:Array.from(state.on), pwas:state.pwas, scheme:state.scheme, keymap:state.keymap})); } catch(e){}
+    try { localStorage.setItem(KEY, JSON.stringify({on:Array.from(state.on), pwas:state.pwas, scheme:state.scheme, keymap:state.keymap, target:state.target})); } catch(e){}
   }
   function restore(){
     try {
@@ -770,22 +863,24 @@ function build(state, mods){
       state.pwas = (d.pwas || []).filter(function(id){ return PWAS.some(function(p){ return p.id === id; }); });
       state.scheme = SCHEMES[d.scheme] ? d.scheme : 'system';
       state.keymap = KEYMAPS.indexOf(d.keymap) >= 0 ? d.keymap : 'latam';
+      state.target = TARGETS[d.target] ? d.target : 'zorin';
       return true;
     } catch(e){ return false; }
   }
 
   function cfgCode(){
-    return 'zcos1:' + Array.from(state.on).join(',') + '|pwas=' + state.pwas.join(',') + '|scheme=' + state.scheme + '|keymap=' + state.keymap;
+    return 'zcos1:' + Array.from(state.on).join(',') + '|target=' + state.target + '|pwas=' + state.pwas.join(',') + '|scheme=' + state.scheme + '|keymap=' + state.keymap;
   }
   function loadCode(text){
     var t = text.trim();
     if (t.indexOf('zcos1:') !== 0) return false;
     var parts = t.slice(6).split('|');
     var on = (parts[0] || '').split(',').filter(function(id){ return IDS.indexOf(id) >= 0; });
-    var next = {on:new Set(on), pwas:state.pwas, scheme:state.scheme, keymap:state.keymap};
+    var next = {on:new Set(on), pwas:state.pwas, scheme:state.scheme, keymap:state.keymap, target:'zorin'};
     parts.slice(1).forEach(function(kv){
       var i = kv.indexOf('='); if (i < 0) return;
       var k = kv.slice(0,i), v = kv.slice(i+1);
+      if (k === 'target' && TARGETS[v]) next.target = v;
       if (k === 'pwas') next.pwas = v.split(',').filter(function(id){ return PWAS.some(function(p){ return p.id === id; }); });
       if (k === 'scheme' && SCHEMES[v]) next.scheme = v;
       if (k === 'keymap' && KEYMAPS.indexOf(v) >= 0) next.keymap = v;
@@ -851,7 +946,17 @@ function build(state, mods){
     document.querySelectorAll('input[data-pwa]').forEach(function(c){ c.checked = state.pwas.indexOf(c.getAttribute('data-pwa')) >= 0; });
     $('#keymap').value = state.keymap;
     $('#scheme').value = state.scheme;
+    document.querySelectorAll('[data-target]').forEach(function(b){
+      b.setAttribute('aria-pressed', b.getAttribute('data-target') === state.target ? 'true' : 'false');
+    });
     update();
+  }
+
+  function setTarget(t){
+    state.target = t;
+    // Los módulos que no aplican al sistema elegido se apagan para que el script no quede con cosas que no existen
+    ITEMS.forEach(function(i){ if (!applicable(i.id)) state.on.delete(i.id); });
+    render();
   }
 
   var current = {text:''};
@@ -859,11 +964,20 @@ function build(state, mods){
     $('#sub-pwas').hidden = !state.on.has('pwas');
     $('#sub-keymap').hidden = !state.on.has('region');
     $('#sub-scheme').hidden = !state.on.has('look_scheme');
+    $('#eyebrow').textContent = TEXT[state.target].eyebrow;
+    $('#notin').textContent = TEXT[state.target].notin;
     GROUPS.forEach(function(g){
-      var n = g.items.filter(function(i){ return state.on.has(i.id); }).length;
+      var visible = g.items.filter(function(i){ return applicable(i.id); });
+      var n = visible.filter(function(i){ return state.on.has(i.id); }).length;
       var el = $('#gc-' + g.id);
-      el.textContent = n + ' de ' + g.items.length;
+      $('#g-' + g.id).hidden = visible.length === 0;
+      el.textContent = n + ' de ' + visible.length;
       el.className = 'g-count' + (n ? ' has' : '');
+      g.items.forEach(function(i){
+        var label = $('#t-' + i.id).closest('.item');
+        label.hidden = !applicable(i.id);
+        label.querySelector('.item-desc').textContent = (state.target === 'mx' && i.dmx) ? i.dmx : i.desc;
+      });
     });
     save();
     $('#cfgcode').value = cfgCode();
@@ -872,7 +986,7 @@ function build(state, mods){
 
   function paint(){
     var code = $('#code');
-    var r = build({on:Array.from(state.on), pwas:state.pwas, scheme:state.scheme, keymap:state.keymap}, mods);
+    var r = build({on:Array.from(state.on), pwas:state.pwas, scheme:state.scheme, keymap:state.keymap, target:state.target}, mods);
     var isInstall = tab === 'install';
     var text = isInstall ? r.script : mods.diag.replace(/^\n/, '');
     current.text = text;
@@ -929,6 +1043,9 @@ function build(state, mods){
 
   document.querySelectorAll('[data-preset]').forEach(function(b){
     b.addEventListener('click', function(){ applyPreset(b.getAttribute('data-preset')); });
+  });
+  document.querySelectorAll('[data-target]').forEach(function(b){
+    b.addEventListener('click', function(){ setTarget(b.getAttribute('data-target')); });
   });
   function setTab(t){
     tab = t;

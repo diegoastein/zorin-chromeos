@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # Script generado por "Panel ChromeOS en Zorin y MX"
-# Equipo: Philco N14P4020 (Celeron, 4 GB). Sistema: Zorin OS Core (GNOME).
-# Módulos: base, region, chrome, chrome_autostart, pwas, onedrive, accounts, acc_cal, acc_contacts, acc_mail, drv_fw, drv_hwe, drv_rtl, drv_bcm, drv_wifi_ps, drv_audio, zram, perf_anim, perf_tracker, perf_services, updates, look_icons, look_scheme, look_scroll, look_touchpad, look_keys, look_favs
+# Equipo: Philco N14P4020 (Celeron, 4 GB). Sistema: MX Linux (XFCE).
+# Módulos: base, region, chrome, chrome_autostart, pwas, onedrive, drv_fw, drv_rtl, drv_bcm, drv_wifi_ps, drv_audio, zram, perf_anim, perf_services, updates, look_icons, look_scroll, look_touchpad, look_keys, look_favs
 #
 # Uso:
 #   DRY_RUN=1 bash setup.sh   # muestra lo que haría, sin cambiar nada
 #   bash setup.sh             # aplica los cambios (ejecutalo con tu usuario, no como root)
 set -euo pipefail
 DRY_RUN="${DRY_RUN:-0}"
-TARGET="zorin"
+TARGET="mx"
 
 
 say()  { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
@@ -49,7 +49,7 @@ xfset() {
 
 if [ "$DRY_RUN" != 1 ]; then
   [ "$(id -u)" -ne 0 ] || { echo "Ejecutá el script con tu usuario; usa sudo solo cuando hace falta."; exit 1; }
-  grep -qi 'ubuntu' /etc/os-release || { echo 'Este script es para Zorin OS / Ubuntu.'; exit 1; }
+  [ -r /etc/debian_version ] && command -v xfconf-query >/dev/null || { echo 'Este script es para MX Linux con XFCE.'; exit 1; }
   [ "$(uname -m)" = x86_64 ] || { echo "Este script es para equipos de 64 bits (x86_64)."; exit 1; }
   sudo -v
 fi
@@ -76,7 +76,7 @@ mod_region() {
     run sudo locale-gen es_AR.UTF-8
   fi
   run sudo update-locale LANG=es_AR.UTF-8
-  gs org.gnome.desktop.input-sources sources "[('xkb', 'latam')]"
+  xfset keyboard-layout /Default/XkbLayout string latam; run sudo localectl set-x11-keymap latam
   NEEDS_REBOOT=1
 }
 
@@ -162,47 +162,10 @@ mod_onedrive() {
 }
 
 
-mod_accounts() {
-  say "Cuentas en línea y Google Drive en el explorador de archivos"
-  run sudo apt-get install -y gnome-online-accounts gnome-control-center gvfs-backends gvfs-fuse
-  run sudo apt-get install -y gnome-online-accounts-gtk || true
-  manual "Cuentas de Google: Configuración, Cuentas en línea, Google. Iniciá sesión y activá Archivos. Chrome sincroniza aparte con su propio inicio de sesión."
-}
-
-
-mod_acc_cal() {
-  say "Calendario de GNOME"
-  run sudo apt-get install -y gnome-calendar
-}
-
-
-mod_acc_contacts() {
-  say "Contactos de GNOME"
-  run sudo apt-get install -y gnome-contacts
-}
-
-
-mod_acc_mail() {
-  say "Correo (Geary)"
-  run sudo apt-get install -y geary
-}
-
-
 mod_drv_fw() {
   say "Reinstalando el firmware de la placa (WiFi y audio)"
   run sudo apt-get install -y --reinstall linux-firmware
   run sudo update-initramfs -u
-  NEEDS_REBOOT=1
-}
-
-
-mod_drv_hwe() {
-  say "Kernel más nuevo (HWE) para mejor soporte de hardware"
-  case "$CODENAME" in
-    jammy) run sudo apt-get install -y linux-generic-hwe-22.04 ;;
-    noble) run sudo apt-get install -y linux-generic-hwe-24.04 ;;
-    *) warn "Versión de Ubuntu no reconocida; se omite el kernel HWE." ;;
-  esac
   NEEDS_REBOOT=1
 }
 
@@ -285,17 +248,6 @@ mod_perf_anim() {
 }
 
 
-mod_perf_tracker() {
-  say "Desactivando la indexación de archivos en segundo plano"
-  local u
-  for u in tracker-miner-fs-3 tracker-extract-3 localsearch-3 localsearch-extract-3; do
-    if [ "$DRY_RUN" = 1 ] || systemctl --user list-unit-files "$u.service" 2>/dev/null | grep -q "$u"; then
-      run systemctl --user mask "$u.service" || true
-    fi
-  done
-}
-
-
 mod_perf_services() {
   say "Apagando servicios que no se usan (módem móvil y descubrimiento de impresoras)"
   local s
@@ -326,12 +278,6 @@ mod_look_icons() {
   else
     gs org.gnome.desktop.interface icon-theme "'Papirus'"
   fi
-}
-
-
-mod_look_scheme() {
-  say "Tema claro u oscuro"
-  gs org.gnome.desktop.interface color-scheme "'default'"
 }
 
 
@@ -400,28 +346,21 @@ main() {
   mod_chrome_autostart
   mod_pwas
   mod_onedrive
-  mod_accounts
-  mod_acc_cal
-  mod_acc_contacts
-  mod_acc_mail
   mod_drv_fw
-  mod_drv_hwe
   mod_drv_rtl
   mod_drv_bcm
   mod_drv_wifi_ps
   mod_drv_audio
   mod_zram
   mod_perf_anim
-  mod_perf_tracker
   mod_perf_services
   mod_updates
   mod_look_icons
-  mod_look_scheme
   mod_look_scroll
   mod_look_touchpad
   mod_look_keys
   mod_look_favs
-  manual "Aspecto: abrí Zorin Appearance y elegí un diseño con la barra abajo y los íconos centrados para acercarte al estilo de ChromeOS. Los cambios de esta sección se ven al cerrar sesión y volver a entrar."
+  manual "Aspecto: el touchpad y el desplazamiento se activan al cerrar sesión y volver a entrar. Los íconos, los atajos y el efecto de composición se aplican al momento."
   finish
 }
 main "$@"
