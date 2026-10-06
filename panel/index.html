@@ -1,0 +1,950 @@
+<title>Panel ChromeOS en Zorin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: opciones en acordeones a la izquierda, script en vivo a la derecha (se apila en el teléfono, con barra de copiado fija abajo) */
+:root{
+  --bg:#edf1f0;
+  --surface:#f8fbfa;
+  --ink:#12201f;
+  --muted:#51605e;
+  --line:#d2dbd9;
+  --accent:#0b7a6e;
+  --accent-ink:#ffffff;
+  --accent-soft:#d9efeb;
+  --warn:#8a5206;
+  --warn-soft:#f8ecd3;
+  --track:#b3c0bd;
+  --knob:#ffffff;
+  --code-bg:#12201f;
+  --code-ink:#d6ebe6;
+  --code-dim:#7f9a95;
+  --font-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0d1514;
+    --surface:#141d1c;
+    --ink:#e2eeeb;
+    --muted:#91a5a1;
+    --line:#25322f;
+    --accent:#3fc6b2;
+    --accent-ink:#04201c;
+    --accent-soft:#12302c;
+    --warn:#e8b45f;
+    --warn-soft:#2b2210;
+    --track:#35433f;
+    --knob:#c9d6d3;
+    --code-bg:#091110;
+    --code-ink:#cfe8e2;
+    --code-dim:#6f8a85;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0d1514;
+  --surface:#141d1c;
+  --ink:#e2eeeb;
+  --muted:#91a5a1;
+  --line:#25322f;
+  --accent:#3fc6b2;
+  --accent-ink:#04201c;
+  --accent-soft:#12302c;
+  --warn:#e8b45f;
+  --warn-soft:#2b2210;
+  --track:#35433f;
+  --knob:#c9d6d3;
+  --code-bg:#091110;
+  --code-ink:#cfe8e2;
+  --code-dim:#6f8a85;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5}
+button,select,input{font:inherit;color:inherit}
+.wrap{max-width:1240px;margin:0 auto;padding-inline:clamp(16px,4vw,32px);padding-block:28px 112px}
+
+.top{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.eyebrow{margin:0;font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1{margin:0;font-family:var(--font-display);font-weight:700;font-size:clamp(1.9rem,5vw,2.9rem);line-height:1.05;letter-spacing:-.02em;text-wrap:balance}
+.lead{margin:0;max-width:60ch;color:var(--muted)}
+.spec{display:flex;flex-wrap:wrap;gap:8px 20px;margin:6px 0 0;padding:0}
+.spec div{display:flex;flex-direction:column;min-width:0}
+.spec dt{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.spec dd{margin:0;font-weight:500}
+
+.presets{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:20px}
+.presets .lbl{font-size:13px;color:var(--muted);margin-right:4px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;cursor:pointer;font-weight:500;font-size:14px}
+.chip:hover{border-color:var(--accent)}
+.chip:focus-visible,.btn:focus-visible,summary:focus-visible,.tab:focus-visible,select:focus-visible,.pchip:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+
+.grid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start}
+@media (min-width:920px){.grid{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr)}}
+
+.groups{display:flex;flex-direction:column;gap:12px;min-width:0}
+details.group{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+details.group>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;cursor:pointer}
+details.group>summary::-webkit-details-marker{display:none}
+.g-title{font-family:var(--font-display);font-weight:600;font-size:1.05rem}
+.g-count{font-family:var(--font-mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.g-count.has{color:var(--accent)}
+.g-body{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.g-hint{margin:0;padding:12px 16px 0;font-size:13px;color:var(--warn)}
+.item{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;cursor:pointer;min-width:0}
+.item+.item,.sub+.item{border-top:1px solid var(--line)}
+.item-text{display:flex;flex-direction:column;gap:2px;min-width:0}
+.item-name{font-weight:600}
+.item-desc{font-size:13px;color:var(--muted)}
+.item-tag{align-self:flex-start;margin-top:2px;font-family:var(--font-mono);font-size:11px;color:var(--warn);background:var(--warn-soft);border-radius:4px;padding:1px 6px}
+.sw{appearance:none;-webkit-appearance:none;flex:none;width:2.5rem;height:1.5rem;margin:1px 0 0;border-radius:999px;background:var(--track);position:relative;cursor:pointer;transition:background .15s}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:calc(1.5rem - 6px);height:calc(1.5rem - 6px);border-radius:50%;background:var(--knob);transition:transform .15s}
+.sw:checked{background:var(--accent)}
+.sw:checked::after{transform:translateX(1rem);background:var(--accent-ink)}
+.sw:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.sub{padding:0 16px 14px 68px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.sub label.f{font-size:13px;color:var(--muted)}
+.sub select{width:100%;max-width:320px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.pwas{display:flex;flex-wrap:wrap;gap:6px}
+.pchip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 12px 4px 8px;font-size:13px;cursor:pointer;background:var(--bg)}
+.pchip input{margin:0;accent-color:var(--accent)}
+.pchip:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.pgrp{font-family:var(--font-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);width:100%;margin-top:4px}
+
+.preview{background:var(--surface);border:1px solid var(--line);border-radius:10px;min-width:0;display:flex;flex-direction:column}
+@media (min-width:920px){.preview{position:sticky;top:16px}}
+.tabs{display:flex;gap:4px;padding:8px 8px 0;border-bottom:1px solid var(--line)}
+.tab{border:0;background:none;padding:9px 14px;border-radius:8px 8px 0 0;cursor:pointer;font-weight:500;color:var(--muted);border-bottom:2px solid transparent}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.pv-body{display:flex;flex-direction:column;gap:12px;padding:14px 16px 16px;min-width:0}
+.sumline{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0;font-size:13px;color:var(--muted)}
+.sumline b{color:var(--ink);font-variant-numeric:tabular-nums}
+.sumline .warn{color:var(--warn)}
+.how{margin:0;font-size:13px;color:var(--muted)}
+.how code{font-family:var(--font-mono);font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 5px;white-space:nowrap}
+.steps{margin:0;padding-left:1.2rem;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+pre.code{margin:0;background:var(--code-bg);color:var(--code-ink);border-radius:8px;padding:14px;font-family:var(--font-mono);font-size:12px;line-height:1.55;overflow:auto;max-height:min(62vh,640px);tab-size:2;white-space:pre}
+pre.code .cm{color:var(--code-dim)}
+.actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:8px;padding:8px 16px;font-weight:600;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line)}
+.btn.ghost:hover{border-color:var(--accent)}
+.lines{font-family:var(--font-mono);font-size:12px;color:var(--muted);margin-left:auto}
+.cfg{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:12px}
+.cfg label{font-size:13px;color:var(--muted)}
+.cfg .row{display:flex;gap:8px;flex-wrap:wrap}
+.cfg input{flex:1 1 220px;min-width:0;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-family:var(--font-mono);font-size:12px}
+.notin{margin:20px 0 0;font-size:13px;color:var(--muted);max-width:80ch}
+
+.bar{position:fixed;left:0;right:0;bottom:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px clamp(16px,4vw,32px);padding-bottom:calc(10px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line)}
+.bar span{font-size:13px;color:var(--muted);min-width:0}
+@media (min-width:920px){.bar{display:none}}
+.toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:8px;font-size:13px;z-index:10;max-width:calc(100% - 32px);text-align:center}
+@media (min-width:920px){.toast{bottom:24px}}
+@media (prefers-reduced-motion:reduce){.sw,.sw::after{transition:none}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">Zorin OS Core · GNOME</p>
+    <h1>Panel ChromeOS en Zorin</h1>
+    <p class="lead">Elegí qué querés en la notebook y el panel arma el script de instalación. Cada opción es un módulo independiente y el script tiene modo de prueba que no cambia nada.</p>
+    <dl class="spec">
+      <div><dt>Equipo</dt><dd>Philco N14P4020</dd></div>
+      <div><dt>Procesador</dt><dd>Celeron, 2 núcleos</dd></div>
+      <div><dt>Memoria</dt><dd>4 GB</dd></div>
+      <div><dt>Disco</dt><dd>SSD 128 GB</dd></div>
+    </dl>
+  </header>
+
+  <div class="presets" role="group" aria-label="Combinaciones rápidas">
+    <span class="lbl">Empezar con</span>
+    <button class="chip" type="button" data-preset="r">Recomendado</button>
+    <button class="chip" type="button" data-preset="m">Mínimo</button>
+    <button class="chip" type="button" data-preset="all">Todo</button>
+    <button class="chip" type="button" data-preset="none">Nada</button>
+  </div>
+
+  <div class="grid">
+    <div class="groups" id="groups"></div>
+
+    <section class="preview" aria-label="Script generado">
+      <div class="tabs" role="tablist">
+        <button class="tab" role="tab" id="tab-install" aria-selected="true" type="button">Instalador</button>
+        <button class="tab" role="tab" id="tab-diag" aria-selected="false" type="button">Diagnóstico</button>
+      </div>
+      <div class="pv-body">
+        <div id="pane-install">
+          <p class="sumline" id="sumline"></p>
+        </div>
+        <div id="pane-diag" hidden>
+          <ol class="steps">
+            <li>Arrancá la notebook desde el pendrive de Zorin y elegí probar sin instalar.</li>
+            <li>Probá sonido y WiFi. Si el WiFi no anda, compartí internet por USB desde el celular.</li>
+            <li>Abrí una terminal, pegá este bloque y pasame el archivo <code>diagnostico-hardware.txt</code>.</li>
+          </ol>
+        </div>
+        <pre class="code" id="code" tabindex="0" aria-label="Contenido del script"></pre>
+        <div class="actions">
+          <button class="btn" type="button" id="copy">Copiar script</button>
+          <span class="lines" id="lines"></span>
+        </div>
+        <p class="how" id="how"></p>
+        <div class="cfg" id="cfg">
+          <label for="cfgcode">Código de esta configuración. Pegalo en el chat para que lo convierta en archivo o lo ajuste.</label>
+          <div class="row">
+            <input id="cfgcode" type="text" spellcheck="false" autocomplete="off">
+            <button class="btn ghost" type="button" id="cfgcopy">Copiar código</button>
+            <button class="btn ghost" type="button" id="cfgload">Cargar</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <p class="notin">Fuera del panel por ahora: OnlyOffice, Waydroid (apps Android, pesado con 4 GB) y MX Linux. El script asume Zorin OS Core o cualquier Ubuntu con GNOME.</p>
+</div>
+
+<div class="bar">
+  <span id="barinfo"></span>
+  <button class="btn" type="button" id="barcopy">Copiar script</button>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<!-- ===== Módulos de bash (datos, no se ejecutan en la página) ===== -->
+<script type="text/plain" data-mod="header">
+#!/usr/bin/env bash
+# Script generado por "Panel ChromeOS en Zorin"
+# Equipo: Philco N14P4020 (Celeron, 4 GB). Sistema: Zorin OS Core / Ubuntu con GNOME.
+# Módulos: @@MODULES@@
+#
+# Uso:
+#   DRY_RUN=1 bash setup.sh   # muestra lo que haría, sin cambiar nada
+#   bash setup.sh             # aplica los cambios (ejecutalo con tu usuario, no como root)
+set -euo pipefail
+DRY_RUN="${DRY_RUN:-0}"
+</script>
+
+<script type="text/plain" data-mod="helpers">
+
+say()  { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
+warn() { printf '\033[1;33m[aviso]\033[0m %s\n' "$*" >&2; }
+MANUAL=()
+NEEDS_REBOOT=0
+manual() { MANUAL+=("$*"); }
+
+# run: ejecuta el comando, o solo lo muestra en modo de prueba
+run() { if [ "$DRY_RUN" = 1 ]; then printf '[dry-run] %s\n' "$*"; else "$@"; fi; }
+# sh_c: igual que run, para cadenas con pipes
+sh_c() { if [ "$DRY_RUN" = 1 ]; then printf '[dry-run] %s\n' "$1"; else bash -c "$1"; fi; }
+# put DESTINO [sudo]: escribe el contenido que llega por stdin
+put() {
+  local dest="$1" use_sudo="${2:-}"
+  if [ "$DRY_RUN" = 1 ]; then
+    echo "[dry-run] escribiría $dest"; cat >/dev/null
+  elif [ -n "$use_sudo" ]; then
+    sudo mkdir -p "$(dirname "$dest")" && sudo tee "$dest" >/dev/null
+  else
+    mkdir -p "$(dirname "$dest")" && cat >"$dest"
+  fi
+}
+# gs ESQUEMA CLAVE VALOR: aplica un ajuste de GNOME solo si la clave existe en esta versión
+gs() {
+  if [ "$DRY_RUN" = 1 ]; then echo "[dry-run] gsettings set $1 $2 $3"; return 0; fi
+  if gsettings list-keys "$1" 2>/dev/null | grep -qx "$2"; then
+    gsettings set "$1" "$2" "$3" || warn "No se pudo aplicar $1 $2"
+  else
+    warn "Ajuste no disponible en esta versión: $1 $2"
+  fi
+}
+
+if [ "$DRY_RUN" != 1 ]; then
+  [ "$(id -u)" -ne 0 ] || { echo "Ejecutá el script con tu usuario; usa sudo solo cuando hace falta."; exit 1; }
+  grep -qi 'ubuntu' /etc/os-release || { echo "Este script es para Zorin OS / Ubuntu."; exit 1; }
+  [ "$(uname -m)" = x86_64 ] || { echo "Este script es para equipos de 64 bits (x86_64)."; exit 1; }
+  sudo -v
+fi
+CODENAME="$(. /etc/os-release; echo "${UBUNTU_CODENAME:-}")"
+
+mod_base() {
+  say "Actualizando el sistema"
+  run sudo apt-get update
+  run sudo apt-get -y upgrade
+  run sudo apt-get install -y curl wget gpg ca-certificates git
+  run sudo install -d -m 0755 /etc/apt/keyrings
+}
+</script>
+
+<script type="text/plain" data-mod="footer">
+
+finish() {
+  say "Listo"
+  if [ "${#MANUAL[@]}" -gt 0 ]; then
+    echo "Pasos que quedan por hacer a mano:"
+    local i=1 m
+    for m in "${MANUAL[@]}"; do printf '  %d. %s\n' "$i" "$m"; i=$((i+1)); done
+    if [ "$DRY_RUN" != 1 ]; then printf '%s\n' "${MANUAL[@]}" > "$HOME/PASOS-MANUALES.txt"; echo "(guardados en ~/PASOS-MANUALES.txt)"; fi
+  fi
+  if [ "$NEEDS_REBOOT" = 1 ]; then echo "Reiniciá la notebook para aplicar todos los cambios."; fi
+}
+</script>
+
+<script type="text/plain" data-mod="region">
+
+mod_region() {
+  say "Idioma, zona horaria y teclado de Argentina"
+  run sudo timedatectl set-timezone America/Argentina/Buenos_Aires
+  run sudo apt-get install -y language-pack-es language-pack-gnome-es
+  run sudo locale-gen es_AR.UTF-8
+  run sudo update-locale LANG=es_AR.UTF-8
+  @@KEYMAPLINE@@
+  NEEDS_REBOOT=1
+}
+</script>
+
+<script type="text/plain" data-mod="chrome">
+
+mod_chrome() {
+  say "Instalando Google Chrome oficial"
+  sh_c 'curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --batch --yes --dearmor -o /etc/apt/keyrings/google-chrome.gpg'
+  echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] https://dl.google.com/linux/chrome/deb/ stable main' | put /etc/apt/sources.list.d/google-chrome.list sudo
+  run sudo apt-get update
+  run sudo apt-get install -y google-chrome-stable
+  run xdg-settings set default-web-browser google-chrome.desktop || warn "No se pudo fijar Chrome como navegador predeterminado."
+  manual "Chrome: abrilo e iniciá sesión con tu cuenta de Google para sincronizar extensiones y favoritos."
+}
+</script>
+
+<script type="text/plain" data-mod="chrome_autostart">
+
+mod_chrome_autostart() {
+  say "Chrome se abre al iniciar sesión"
+  put "$HOME/.config/autostart/google-chrome.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Google Chrome
+Exec=google-chrome-stable
+X-GNOME-Autostart-enabled=true
+EOF
+}
+</script>
+
+<script type="text/plain" data-mod="pwas">
+
+make_pwa() { # make_pwa id "Nombre" URL icono
+  local id="$1" name="$2" url="$3" icon="$4"
+  put "$HOME/.local/share/applications/pwa-$id.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=$name
+Exec=google-chrome-stable --app=$url
+Icon=$icon
+Terminal=false
+Categories=Network;Office;
+EOF
+}
+
+mod_pwas() {
+  say "Creando lanzadores de apps web"
+@@PWALIST@@
+  run update-desktop-database "$HOME/.local/share/applications" || true
+  manual "Apps web: los lanzadores abren cada servicio en su propia ventana. Si querés íconos propios, instalá cada una desde Chrome (menú ⋮, Transmitir, guardar y compartir, Instalar página como app)."
+}
+</script>
+
+<script type="text/plain" data-mod="onedrive">
+
+mod_onedrive() {
+  say "Instalando onedriver (OneDrive como carpeta)"
+  local ver=""
+  case "$CODENAME" in
+    focal) ver="20.04" ;;
+    jammy) ver="22.04" ;;
+    noble) ver="24.04" ;;
+  esac
+  if [ -z "$ver" ]; then
+    if [ "$DRY_RUN" = 1 ]; then ver="24.04"; else
+      warn "Versión de Ubuntu no reconocida; se omite onedriver. Instalalo desde https://github.com/jstaf/onedriver y montalo en ~/OneDrive."
+      return 0
+    fi
+  fi
+  local base="https://download.opensuse.org/repositories/home:/jstaf/xUbuntu_$ver"
+  sh_c "curl -fsSL '$base/Release.key' | sudo gpg --batch --yes --dearmor -o /etc/apt/keyrings/onedriver.gpg"
+  echo "deb [signed-by=/etc/apt/keyrings/onedriver.gpg] $base/ /" | put /etc/apt/sources.list.d/onedriver.list sudo
+  run sudo apt-get update
+  run sudo apt-get install -y onedriver
+  run mkdir -p "$HOME/OneDrive"
+  manual "OneDrive, paso 1: en una terminal corré  onedriver ~/OneDrive  e iniciá sesión con tu cuenta de Microsoft en la ventana que se abre."
+  manual "OneDrive, paso 2: para que se monte solo al iniciar sesión, corré  systemctl --user daemon-reload  y después  systemctl --user enable --now \"\$(systemd-escape --template onedriver@.service --path \$HOME/OneDrive)\""
+}
+</script>
+
+<script type="text/plain" data-mod="accounts">
+
+mod_accounts() {
+  say "Cuentas en línea y Google Drive en el explorador de archivos"
+  run sudo apt-get install -y gnome-online-accounts gnome-control-center gvfs-backends gvfs-fuse
+  run sudo apt-get install -y gnome-online-accounts-gtk || true
+  manual "Cuentas de Google: Configuración, Cuentas en línea, Google. Iniciá sesión y activá Archivos. Chrome sincroniza aparte con su propio inicio de sesión."
+}
+</script>
+
+<script type="text/plain" data-mod="acc_cal">
+
+mod_acc_cal() {
+  say "Calendario de GNOME"
+  run sudo apt-get install -y gnome-calendar
+}
+</script>
+
+<script type="text/plain" data-mod="acc_contacts">
+
+mod_acc_contacts() {
+  say "Contactos de GNOME"
+  run sudo apt-get install -y gnome-contacts
+}
+</script>
+
+<script type="text/plain" data-mod="acc_mail">
+
+mod_acc_mail() {
+  say "Correo (Geary)"
+  run sudo apt-get install -y geary
+}
+</script>
+
+<script type="text/plain" data-mod="drv_fw">
+
+mod_drv_fw() {
+  say "Reinstalando el firmware de la placa (WiFi y audio)"
+  run sudo apt-get install -y --reinstall linux-firmware
+  run sudo update-initramfs -u
+  NEEDS_REBOOT=1
+}
+</script>
+
+<script type="text/plain" data-mod="drv_hwe">
+
+mod_drv_hwe() {
+  say "Kernel más nuevo (HWE) para mejor soporte de hardware"
+  case "$CODENAME" in
+    jammy) run sudo apt-get install -y linux-generic-hwe-22.04 ;;
+    noble) run sudo apt-get install -y linux-generic-hwe-24.04 ;;
+    *) warn "Versión de Ubuntu no reconocida; se omite el kernel HWE." ;;
+  esac
+  NEEDS_REBOOT=1
+}
+</script>
+
+<script type="text/plain" data-mod="drv_rtl">
+
+mod_drv_rtl() {
+  say "Driver Realtek 8821CE (solo si el chip está presente)"
+  if [ "$DRY_RUN" = 1 ] || lspci -nn 2>/dev/null | grep -qi '10ec:c821'; then
+    run sudo apt-get install -y dkms build-essential "linux-headers-$(uname -r)" rtl8821ce-dkms
+    NEEDS_REBOOT=1
+    manual "Driver Realtek: si el equipo tiene Secure Boot, al reiniciar aparece una pantalla azul de MOK. Elegí Enroll MOK e ingresá la contraseña que te pidió la instalación."
+  else
+    warn "No se encontró un Realtek 8821CE en este equipo; se omite."
+  fi
+}
+</script>
+
+<script type="text/plain" data-mod="drv_bcm">
+
+mod_drv_bcm() {
+  say "Driver Broadcom de WiFi (solo si el chip está presente)"
+  if [ "$DRY_RUN" = 1 ] || lspci -nn 2>/dev/null | grep -iE 'network.*broadcom' >/dev/null; then
+    run sudo apt-get install -y bcmwl-kernel-source
+    NEEDS_REBOOT=1
+  else
+    warn "No se encontró una placa WiFi Broadcom; se omite."
+  fi
+}
+</script>
+
+<script type="text/plain" data-mod="drv_wifi_ps">
+
+mod_drv_wifi_ps() {
+  say "Desactivando el ahorro de energía del WiFi (evita cortes de conexión)"
+  printf '[connection]\nwifi.powersave = 2\n' | put /etc/NetworkManager/conf.d/99-wifi-powersave-off.conf sudo
+  NEEDS_REBOOT=1
+}
+</script>
+
+<script type="text/plain" data-mod="drv_audio">
+
+mod_drv_audio() {
+  say "Audio: usar el driver clásico de Intel"
+  printf 'options snd-intel-dspcfg dsp_driver=1\n' | put /etc/modprobe.d/99-audio-clasico.conf sudo
+  run sudo update-initramfs -u
+  NEEDS_REBOOT=1
+  manual "Audio: si después de reiniciar sigue sin sonido, borrá /etc/modprobe.d/99-audio-clasico.conf, corré  sudo update-initramfs -u  y pasame la salida del diagnóstico."
+}
+</script>
+
+<script type="text/plain" data-mod="zram">
+
+mod_zram() {
+  say "Activando zram (memoria comprimida) y ajustes de memoria"
+  run sudo apt-get install -y systemd-zram-generator
+  printf '[zram0]\nzram-size = ram\ncompression-algorithm = zstd\nswap-priority = 100\n' | put /etc/systemd/zram-generator.conf sudo
+  printf 'vm.swappiness = 100\nvm.page-cluster = 0\nvm.vfs_cache_pressure = 50\n' | put /etc/sysctl.d/99-zram.conf sudo
+  run sudo sysctl --system
+  run sudo systemctl daemon-reload
+  run sudo systemctl start systemd-zram-setup@zram0.service || warn "zram se activa después de reiniciar."
+  NEEDS_REBOOT=1
+}
+</script>
+
+<script type="text/plain" data-mod="perf_anim">
+
+mod_perf_anim() {
+  say "Desactivando animaciones del escritorio"
+  gs org.gnome.desktop.interface enable-animations false
+}
+</script>
+
+<script type="text/plain" data-mod="perf_tracker">
+
+mod_perf_tracker() {
+  say "Desactivando la indexación de archivos en segundo plano"
+  local u
+  for u in tracker-miner-fs-3 tracker-extract-3 localsearch-3 localsearch-extract-3; do
+    if [ "$DRY_RUN" = 1 ] || systemctl --user list-unit-files "$u.service" 2>/dev/null | grep -q "$u"; then
+      run systemctl --user mask "$u.service" || true
+    fi
+  done
+}
+</script>
+
+<script type="text/plain" data-mod="perf_services">
+
+mod_perf_services() {
+  say "Apagando servicios que no se usan (módem móvil y descubrimiento de impresoras)"
+  local s
+  for s in ModemManager cups-browsed; do
+    if [ "$DRY_RUN" = 1 ] || systemctl list-unit-files "$s.service" 2>/dev/null | grep -q "$s"; then
+      run sudo systemctl disable --now "$s.service" || true
+    fi
+  done
+}
+</script>
+
+<script type="text/plain" data-mod="updates">
+
+mod_updates() {
+  say "Actualizaciones automáticas en segundo plano"
+  run sudo apt-get install -y unattended-upgrades
+  printf 'APT::Periodic::Update-Package-Lists "1";\nAPT::Periodic::Unattended-Upgrade "1";\n' | put /etc/apt/apt.conf.d/20auto-upgrades sudo
+  {
+    printf 'Unattended-Upgrade::Allowed-Origins:: "Google LLC:stable";\n'
+    @@REBOOTLINE@@
+  } | put /etc/apt/apt.conf.d/52chromeos-like sudo
+}
+</script>
+
+<script type="text/plain" data-mod="look_icons">
+
+mod_look_icons() {
+  say "Íconos Papirus"
+  run sudo apt-get install -y papirus-icon-theme
+  gs org.gnome.desktop.interface icon-theme "'Papirus'"
+}
+</script>
+
+<script type="text/plain" data-mod="look_scheme">
+
+mod_look_scheme() {
+  say "Tema claro u oscuro"
+  gs org.gnome.desktop.interface color-scheme "'@@SCHEME@@'"
+}
+</script>
+
+<script type="text/plain" data-mod="look_scroll">
+
+mod_look_scroll() {
+  say "Desplazamiento natural del touchpad"
+  gs org.gnome.desktop.peripherals.touchpad natural-scroll true
+}
+</script>
+
+<script type="text/plain" data-mod="look_touchpad">
+
+mod_look_touchpad() {
+  say "Touchpad: tocar para hacer clic y clic derecho con dos dedos"
+  gs org.gnome.desktop.peripherals.touchpad tap-to-click true
+  gs org.gnome.desktop.peripherals.touchpad two-finger-scrolling-enabled true
+  gs org.gnome.desktop.peripherals.touchpad click-method "'fingers'"
+}
+</script>
+
+<script type="text/plain" data-mod="look_keys">
+
+mod_look_keys() {
+  say "Atajos de teclado tipo ChromeOS"
+  gs org.gnome.shell.keybindings show-screenshot-ui "['<Primary><Shift>F5', 'Print']"
+  gs org.gnome.mutter.keybindings toggle-tiled-left "['<Alt>bracketleft', '<Super>Left']"
+  gs org.gnome.mutter.keybindings toggle-tiled-right "['<Alt>bracketright', '<Super>Right']"
+}
+</script>
+
+<script type="text/plain" data-mod="look_favs">
+
+mod_look_favs() {
+  say "Apps ancladas en la barra"
+  gs org.gnome.shell favorite-apps "[@@FAVS@@]"
+}
+</script>
+
+<script type="text/plain" data-mod="diag">
+#!/usr/bin/env bash
+# Diagnóstico de hardware para la Philco N14P4020. Corrélo desde el pendrive en modo de prueba.
+out="$HOME/diagnostico-hardware.txt"
+{
+  echo "## Fecha"; date
+  echo "## Kernel"; uname -r
+  echo "## CPU y RAM"; lscpu | grep -E 'Model name|^CPU\(s\)'; free -h
+  echo "## Placas PCI de red y audio"; lspci -nnk | grep -A3 -iE 'network|audio'
+  echo "## Dispositivos USB"; lsusb
+  echo "## Tarjetas de sonido"; aplay -l 2>&1
+  echo "## Módulos de audio cargados"; lsmod | grep -E 'snd_(sof|soc|hda|intel)'
+  echo "## Bloqueos de radio"; rfkill list 2>&1
+  echo "## Interfaces de red"; nmcli device status 2>&1
+  echo "## Mensajes del kernel sobre firmware, WiFi y audio"
+  sudo dmesg | grep -iE 'firmware|rtw|rtl|iwlwifi|brcm|ath|sof|snd' | tail -n 60
+} > "$out" 2>&1
+echo "Listo: $out"
+</script>
+
+<!-- ===== Generador (JS puro, se prueba aparte con Node) ===== -->
+<script id="gen">
+const PWAS = [
+  {id:'word', name:'Word', url:'https://www.office.com/launch/word', icon:'x-office-document', grp:'Microsoft'},
+  {id:'excel', name:'Excel', url:'https://www.office.com/launch/excel', icon:'x-office-spreadsheet', grp:'Microsoft'},
+  {id:'powerpoint', name:'PowerPoint', url:'https://www.office.com/launch/powerpoint', icon:'x-office-presentation', grp:'Microsoft'},
+  {id:'onedrive-web', name:'OneDrive web', url:'https://onedrive.live.com/', icon:'folder-remote', grp:'Microsoft'},
+  {id:'outlook', name:'Outlook', url:'https://outlook.live.com/mail/', icon:'internet-mail', grp:'Microsoft'},
+  {id:'gmail', name:'Gmail', url:'https://mail.google.com/', icon:'internet-mail', grp:'Google'},
+  {id:'gdrive', name:'Drive', url:'https://drive.google.com/', icon:'folder-remote', grp:'Google'},
+  {id:'gcal', name:'Calendar', url:'https://calendar.google.com/', icon:'x-office-calendar', grp:'Google'},
+  {id:'gdocs', name:'Docs', url:'https://docs.google.com/document/', icon:'x-office-document', grp:'Google'},
+  {id:'gsheets', name:'Sheets', url:'https://docs.google.com/spreadsheets/', icon:'x-office-spreadsheet', grp:'Google'},
+  {id:'gslides', name:'Slides', url:'https://docs.google.com/presentation/', icon:'x-office-presentation', grp:'Google'}
+];
+
+const ORDER = ['region','chrome','chrome_autostart','pwas','onedrive','accounts','acc_cal','acc_contacts','acc_mail',
+  'drv_fw','drv_hwe','drv_rtl','drv_bcm','drv_wifi_ps','drv_audio','zram','perf_anim','perf_tracker','perf_services',
+  'updates','look_icons','look_scheme','look_scroll','look_touchpad','look_keys','look_favs'];
+
+const SCHEMES = {system:'default', light:'prefer-light', dark:'prefer-dark'};
+const KEYMAPS = ['latam','es','none'];
+
+function build(state, mods){
+  const on = new Set(state.on);
+  const added = [];
+  if ((on.has('pwas') || on.has('chrome_autostart')) && !on.has('chrome')) { on.add('chrome'); added.push('chrome'); }
+  const chosen = ORDER.filter(id => on.has(id));
+  const pwas = PWAS.filter(p => (state.pwas || []).indexOf(p.id) >= 0);
+  const scheme = SCHEMES[state.scheme] || 'default';
+  const keymap = KEYMAPS.indexOf(state.keymap) >= 0 ? state.keymap : 'latam';
+
+  const favs = ['google-chrome.desktop', 'org.gnome.Nautilus.desktop']
+    .concat(pwas.map(p => 'pwa-' + p.id + '.desktop'))
+    .concat(['org.gnome.Settings.desktop'])
+    .map(f => "'" + f + "'").join(', ');
+
+  const vals = {
+    MODULES: ['base'].concat(chosen).join(', '),
+    KEYMAPLINE: keymap === 'none' ? 'true' : 'gs org.gnome.desktop.input-sources sources "[(\'xkb\', \'' + keymap + '\')]"',
+    PWALIST: pwas.length
+      ? pwas.map(p => '  make_pwa ' + p.id + ' "' + p.name + '" "' + p.url + '" ' + p.icon).join('\n')
+      : '  true',
+    SCHEME: scheme,
+    FAVS: favs,
+    REBOOTLINE: on.has('updates_reboot')
+      ? "printf 'Unattended-Upgrade::Automatic-Reboot \"true\";\\nUnattended-Upgrade::Automatic-Reboot-Time \"04:00\";\\n'"
+      : "printf 'Unattended-Upgrade::Automatic-Reboot \"false\";\\n'"
+  };
+  const fill = t => t.replace(/@@(\w+)@@/g, (m, k) => (k in vals ? vals[k] : ''));
+  const clean = t => t.replace(/^\n/, '').replace(/\n+$/, '');
+
+  const parts = [clean(fill(mods.header)), clean(fill(mods.helpers))];
+  chosen.forEach(id => parts.push(clean(fill(mods[id]))));
+  parts.push(clean(fill(mods.footer)));
+
+  const hasLook = chosen.some(id => id.indexOf('look_') === 0);
+  const main = ['main() {', '  mod_base'];
+  chosen.forEach(id => main.push('  mod_' + id));
+  if (hasLook) main.push('  manual "Aspecto: abrí Zorin Appearance y elegí un diseño con la barra abajo y los íconos centrados para acercarte al estilo de ChromeOS. Los cambios de esta sección se ven al cerrar sesión y volver a entrar."');
+  main.push('  finish', '}', 'main "$@"');
+  parts.push(main.join('\n'));
+
+  const script = parts.join('\n\n') + '\n';
+  return {
+    script: script,
+    chosen: chosen,
+    added: added,
+    manual: (script.match(/^\s*manual "/gm) || []).length,
+    reboot: chosen.some(id => /NEEDS_REBOOT=1/.test(mods[id]))
+  };
+}
+</script>
+
+<script>
+(function(){
+  var GROUPS = [
+    {id:'apps', title:'Navegador y apps', items:[
+      {id:'chrome', name:'Google Chrome oficial', desc:'Agrega el repositorio de Google, instala Chrome y lo deja como navegador predeterminado. Se actualiza junto con el sistema.', p:'rm'},
+      {id:'chrome_autostart', name:'Abrir Chrome al iniciar sesión', desc:'Como en ChromeOS, el navegador es lo primero que aparece.', p:''},
+      {id:'pwas', name:'Apps web como ventanas propias', desc:'Crea lanzadores en el menú que abren cada servicio sin barra de pestañas. Agrega Chrome si no lo elegiste.', p:'r', sub:'pwas'},
+      {id:'onedrive', name:'OneDrive como carpeta (onedriver)', desc:'Monta tu OneDrive en ~/OneDrive y baja cada archivo solo cuando lo abrís, así ahorrás espacio en el SSD. El primer inicio de sesión es manual.', p:'r'}
+    ]},
+    {id:'region', title:'Idioma y teclado', items:[
+      {id:'region', name:'Argentina: idioma, zona horaria y teclado', desc:'Español de Argentina, zona horaria de Buenos Aires y la distribución de teclado que elijas.', p:'rm', sub:'keymap'}
+    ]},
+    {id:'google', title:'Cuentas de Google en el escritorio', items:[
+      {id:'accounts', name:'Cuentas en línea y Drive en el explorador', desc:'Instala lo necesario para agregar tu cuenta de Google en Configuración y ver Drive en el explorador de archivos.', p:'r'},
+      {id:'acc_cal', name:'Calendario de GNOME', desc:'Muestra los eventos de tu cuenta de Google en el escritorio.', p:''},
+      {id:'acc_contacts', name:'Contactos de GNOME', desc:'Libreta de contactos sincronizada con la cuenta.', p:''},
+      {id:'acc_mail', name:'Correo con Geary', desc:'Cliente de correo liviano. Gmail también queda disponible como app web.', p:''}
+    ]},
+    {id:'look', title:'Aspecto y atajos', items:[
+      {id:'look_icons', name:'Íconos Papirus', desc:'Íconos planos y limpios, más cercanos a ChromeOS.', p:'r'},
+      {id:'look_scheme', name:'Forzar tema claro u oscuro', desc:'Si lo dejás apagado, Zorin mantiene su configuración.', p:'', sub:'scheme'},
+      {id:'look_scroll', name:'Desplazamiento natural en el touchpad', desc:'Dos dedos hacia arriba mueven la página hacia abajo, como en ChromeOS.', p:'r'},
+      {id:'look_touchpad', name:'Touchpad: tocar para hacer clic', desc:'Un toque es clic y dos dedos son clic derecho.', p:'r'},
+      {id:'look_keys', name:'Atajos tipo ChromeOS', desc:'Ctrl+Shift+F5 captura la pantalla. Alt+[ y Alt+] acomodan la ventana a la izquierda o a la derecha.', p:'r'},
+      {id:'look_favs', name:'Anclar apps en la barra', desc:'Chrome, Archivos, las apps web elegidas y Configuración.', p:'r'}
+    ]},
+    {id:'perf', title:'Rendimiento y actualizaciones', items:[
+      {id:'zram', name:'zram: memoria comprimida', desc:'Usa parte de la RAM como swap comprimido. Es el ajuste que más ayuda con 4 GB.', p:'rm'},
+      {id:'perf_anim', name:'Sin animaciones del escritorio', desc:'Ventanas y menús responden más rápido en un Celeron.', p:'r'},
+      {id:'perf_tracker', name:'Sin indexación de archivos', desc:'Apaga el buscador interno que lee el disco en segundo plano. La búsqueda de archivos del menú se vuelve más limitada.', p:'r'},
+      {id:'perf_services', name:'Apagar servicios que no usás', desc:'Módem móvil y descubrimiento automático de impresoras de red.', p:''},
+      {id:'updates', name:'Actualizaciones automáticas', desc:'Instala parches del sistema y de Chrome sin pedirte nada.', p:'rm'},
+      {id:'updates_reboot', name:'Reiniciar a las 4:00 si hace falta', desc:'Aplica las actualizaciones que requieren reinicio, de madrugada.', p:''}
+    ]},
+    {id:'hw', title:'Sonido y WiFi', hint:'Probá primero desde el pendrive. Activá solo lo que haga falta según el diagnóstico.', items:[
+      {id:'drv_wifi_ps', name:'WiFi sin ahorro de energía', desc:'Corrige cortes y lentitud frecuentes en placas Realtek.', p:'r'},
+      {id:'drv_fw', name:'Reinstalar el firmware de la placa', desc:'Útil si el sistema dice que falta firmware de WiFi o audio.', p:''},
+      {id:'drv_rtl', name:'Driver Realtek 8821CE', desc:'El script verifica que el chip exista antes de instalar.', p:'', tag:'según diagnóstico'},
+      {id:'drv_bcm', name:'Driver Broadcom de WiFi', desc:'El script verifica que la placa exista antes de instalar.', p:'', tag:'según diagnóstico'},
+      {id:'drv_hwe', name:'Kernel más nuevo (HWE)', desc:'Mejor soporte para hardware reciente. Descarga más datos.', p:'', tag:'según diagnóstico'},
+      {id:'drv_audio', name:'Audio con driver clásico de Intel', desc:'Solo si no hay sonido con la configuración predeterminada.', p:'', tag:'según diagnóstico'}
+    ]}
+  ];
+  var ITEMS = [];
+  GROUPS.forEach(function(g){ g.items.forEach(function(i){ ITEMS.push(i); }); });
+  var IDS = ITEMS.map(function(i){ return i.id; }).concat(['updates_reboot']);
+  var KEY = 'zcos-panel-v1';
+  var DEFAULT_PWAS = ['word','excel','powerpoint','gmail','gdrive'];
+
+  var state = {on:new Set(), pwas:DEFAULT_PWAS.slice(), scheme:'system', keymap:'latam'};
+  var tab = 'install';
+  var mods = {};
+  document.querySelectorAll('script[type="text/plain"][data-mod]').forEach(function(s){ mods[s.getAttribute('data-mod')] = s.textContent; });
+
+  function $(s){ return document.querySelector(s); }
+  function esc(t){ return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function applyPreset(p){
+    state.on = new Set();
+    ITEMS.forEach(function(i){
+      if (p === 'all' || (p !== 'none' && i.p.indexOf(p) >= 0)) state.on.add(i.id);
+    });
+    render();
+  }
+
+  function save(){
+    try { localStorage.setItem(KEY, JSON.stringify({on:Array.from(state.on), pwas:state.pwas, scheme:state.scheme, keymap:state.keymap})); } catch(e){}
+  }
+  function restore(){
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return false;
+      var d = JSON.parse(raw);
+      state.on = new Set((d.on || []).filter(function(id){ return IDS.indexOf(id) >= 0; }));
+      state.pwas = (d.pwas || []).filter(function(id){ return PWAS.some(function(p){ return p.id === id; }); });
+      state.scheme = SCHEMES[d.scheme] ? d.scheme : 'system';
+      state.keymap = KEYMAPS.indexOf(d.keymap) >= 0 ? d.keymap : 'latam';
+      return true;
+    } catch(e){ return false; }
+  }
+
+  function cfgCode(){
+    return 'zcos1:' + Array.from(state.on).join(',') + '|pwas=' + state.pwas.join(',') + '|scheme=' + state.scheme + '|keymap=' + state.keymap;
+  }
+  function loadCode(text){
+    var t = text.trim();
+    if (t.indexOf('zcos1:') !== 0) return false;
+    var parts = t.slice(6).split('|');
+    var on = (parts[0] || '').split(',').filter(function(id){ return IDS.indexOf(id) >= 0; });
+    var next = {on:new Set(on), pwas:state.pwas, scheme:state.scheme, keymap:state.keymap};
+    parts.slice(1).forEach(function(kv){
+      var i = kv.indexOf('='); if (i < 0) return;
+      var k = kv.slice(0,i), v = kv.slice(i+1);
+      if (k === 'pwas') next.pwas = v.split(',').filter(function(id){ return PWAS.some(function(p){ return p.id === id; }); });
+      if (k === 'scheme' && SCHEMES[v]) next.scheme = v;
+      if (k === 'keymap' && KEYMAPS.indexOf(v) >= 0) next.keymap = v;
+    });
+    state = next;
+    return true;
+  }
+
+  function buildGroups(){
+    var root = $('#groups');
+    root.innerHTML = '';
+    GROUPS.forEach(function(g, gi){
+      var d = document.createElement('details');
+      d.className = 'group';
+      d.id = 'g-' + g.id;
+      if (gi < 2) d.open = true;
+      var html = '<summary><span class="g-title">' + g.title + '</span><span class="g-count" id="gc-' + g.id + '"></span></summary><div class="g-body">';
+      if (g.hint) html += '<p class="g-hint">' + g.hint + '</p>';
+      g.items.forEach(function(i){
+        html += '<label class="item" for="t-' + i.id + '"><input class="sw" type="checkbox" role="switch" id="t-' + i.id + '" data-id="' + i.id + '">' +
+          '<span class="item-text"><span class="item-name">' + i.name + '</span><span class="item-desc">' + i.desc + '</span></span>' +
+          (i.tag ? '<span class="item-tag">' + i.tag + '</span>' : '') + '</label>';
+        if (i.sub === 'pwas') {
+          html += '<div class="sub" id="sub-pwas" hidden><div class="pwas">';
+          var last = '';
+          PWAS.forEach(function(p){
+            if (p.grp !== last) { html += '<span class="pgrp">' + p.grp + '</span>'; last = p.grp; }
+            html += '<label class="pchip"><input type="checkbox" data-pwa="' + p.id + '">' + p.name + '</label>';
+          });
+          html += '</div></div>';
+        }
+        if (i.sub === 'keymap') {
+          html += '<div class="sub" id="sub-keymap" hidden><label class="f" for="keymap">Distribución de teclado</label><select id="keymap">' +
+            '<option value="latam">Español latinoamericano</option><option value="es">Español de España</option><option value="none">No cambiar</option></select></div>';
+        }
+        if (i.sub === 'scheme') {
+          html += '<div class="sub" id="sub-scheme" hidden><label class="f" for="scheme">Tema</label><select id="scheme">' +
+            '<option value="system">Seguir al sistema</option><option value="light">Claro</option><option value="dark">Oscuro</option></select></div>';
+        }
+      });
+      html += '</div>';
+      d.innerHTML = html;
+      root.appendChild(d);
+    });
+
+    root.addEventListener('change', function(e){
+      var t = e.target;
+      if (t.matches('input[data-id]')) {
+        if (t.checked) state.on.add(t.getAttribute('data-id')); else state.on.delete(t.getAttribute('data-id'));
+        update();
+      } else if (t.matches('input[data-pwa]')) {
+        var id = t.getAttribute('data-pwa');
+        state.pwas = state.pwas.filter(function(x){ return x !== id; });
+        if (t.checked) state.pwas.push(id);
+        update();
+      } else if (t.id === 'keymap') { state.keymap = t.value; update(); }
+      else if (t.id === 'scheme') { state.scheme = t.value; update(); }
+    });
+  }
+
+  function render(){
+    ITEMS.forEach(function(i){ $('#t-' + i.id).checked = state.on.has(i.id); });
+    document.querySelectorAll('input[data-pwa]').forEach(function(c){ c.checked = state.pwas.indexOf(c.getAttribute('data-pwa')) >= 0; });
+    $('#keymap').value = state.keymap;
+    $('#scheme').value = state.scheme;
+    update();
+  }
+
+  var current = {text:''};
+  function update(){
+    $('#sub-pwas').hidden = !state.on.has('pwas');
+    $('#sub-keymap').hidden = !state.on.has('region');
+    $('#sub-scheme').hidden = !state.on.has('look_scheme');
+    GROUPS.forEach(function(g){
+      var n = g.items.filter(function(i){ return state.on.has(i.id); }).length;
+      var el = $('#gc-' + g.id);
+      el.textContent = n + ' de ' + g.items.length;
+      el.className = 'g-count' + (n ? ' has' : '');
+    });
+    save();
+    $('#cfgcode').value = cfgCode();
+    paint();
+  }
+
+  function paint(){
+    var code = $('#code');
+    var r = build({on:Array.from(state.on), pwas:state.pwas, scheme:state.scheme, keymap:state.keymap}, mods);
+    var isInstall = tab === 'install';
+    var text = isInstall ? r.script : mods.diag.replace(/^\n/, '');
+    current.text = text;
+    code.innerHTML = text.split('\n').map(function(l){
+      var e = esc(l);
+      return /^\s*#/.test(l) && l.indexOf('#!') !== 0 ? '<span class="cm">' + e + '</span>' : e;
+    }).join('\n');
+    $('#lines').textContent = text.split('\n').length - 1 + ' líneas';
+    $('#pane-install').hidden = !isInstall;
+    $('#pane-diag').hidden = isInstall;
+    $('#cfg').hidden = !isInstall;
+    $('#copy').textContent = isInstall ? 'Copiar script' : 'Copiar diagnóstico';
+    $('#barcopy').textContent = isInstall ? 'Copiar script' : 'Copiar diagnóstico';
+    if (isInstall) {
+      var n = r.chosen.length;
+      var s = '<span><b>' + n + '</b> ' + (n === 1 ? 'módulo' : 'módulos') + '</span>' +
+        '<span><b>' + r.manual + '</b> ' + (r.manual === 1 ? 'paso manual' : 'pasos manuales') + '</span>' +
+        '<span class="' + (r.reboot ? 'warn' : '') + '">' + (r.reboot ? 'Pide reiniciar' : 'No pide reiniciar') + '</span>';
+      if (r.added.length) s += '<span>Incluye Chrome porque lo necesitan las apps web</span>';
+      $('#sumline').innerHTML = s;
+      $('#how').innerHTML = 'Guardalo como <code>setup.sh</code>. Para probarlo sin cambiar nada: <code>DRY_RUN=1 bash setup.sh</code>. Para aplicarlo: <code>bash setup.sh</code>.';
+      $('#barinfo').textContent = n + (n === 1 ? ' módulo' : ' módulos') + ' · ' + r.manual + ' a mano';
+    } else {
+      $('#how').innerHTML = 'Guardalo como <code>diag.sh</code> y corré <code>bash diag.sh</code>. No instala ni modifica nada.';
+      $('#barinfo').textContent = 'Diagnóstico de hardware';
+    }
+  }
+
+  function toast(msg){
+    var t = $('#toast');
+    t.textContent = msg; t.hidden = false;
+    clearTimeout(toast.h);
+    toast.h = setTimeout(function(){ t.hidden = true; }, 2600);
+  }
+  function selectNode(node){
+    var r = document.createRange(); r.selectNodeContents(node);
+    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+  }
+  function copy(text, node, okMsg){
+    var p;
+    try { p = navigator.clipboard.writeText(text); } catch(e){ p = Promise.reject(e); }
+    p.then(function(){ toast(okMsg); }, function(){
+      if (node.select) node.select(); else selectNode(node);
+      toast('Quedó seleccionado. Copialo con Ctrl+C o con una pulsación larga.');
+    });
+  }
+
+  buildGroups();
+  if (!restore()) {
+    state.on = new Set();
+    ITEMS.forEach(function(i){ if (i.p.indexOf('r') >= 0) state.on.add(i.id); });
+  }
+  render();
+
+  document.querySelectorAll('[data-preset]').forEach(function(b){
+    b.addEventListener('click', function(){ applyPreset(b.getAttribute('data-preset')); });
+  });
+  function setTab(t){
+    tab = t;
+    $('#tab-install').setAttribute('aria-selected', t === 'install');
+    $('#tab-diag').setAttribute('aria-selected', t === 'diag');
+    paint();
+  }
+  $('#tab-install').addEventListener('click', function(){ setTab('install'); });
+  $('#tab-diag').addEventListener('click', function(){ setTab('diag'); });
+  function doCopy(){ copy(current.text, $('#code'), tab === 'install' ? 'Script copiado' : 'Diagnóstico copiado'); }
+  $('#copy').addEventListener('click', doCopy);
+  $('#barcopy').addEventListener('click', doCopy);
+  $('#cfgcopy').addEventListener('click', function(){ copy($('#cfgcode').value, $('#cfgcode'), 'Código copiado'); });
+  $('#cfgload').addEventListener('click', function(){
+    if (loadCode($('#cfgcode').value)) { render(); toast('Configuración cargada'); }
+    else toast('El código no es válido. Tiene que empezar con zcos1:');
+  });
+})();
+</script>

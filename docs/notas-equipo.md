@@ -1,0 +1,24 @@
+# Notas del equipo
+
+## Philco N14P4020
+
+Según las fichas de venta de Frávega y Megatone: Celeron de 2 núcleos, 4 GB de RAM, SSD de 128 GB, pantalla de 14.1" TN sin tacto, 2 puertos USB y 1 HDMI. Salía con Windows 11 Home.
+
+No se pudo confirmar desde las fichas el chip de WiFi ni el de audio. Por eso el repositorio incluye el diagnóstico y los drivers solo se instalan si el script detecta el chip.
+
+## Problemas conocidos en ChromeOS Flex
+
+Sonido y conectividad. El diagnóstico (`scripts/diagnostico-hardware.sh`) tiene que correrse desde un pendrive de Zorin en modo de prueba para ver qué chip hay y si funciona con el kernel de Zorin.
+
+## Decisiones tomadas
+
+- Base: Zorin OS Core (GNOME), por la integración de Cuentas en línea. Con 4 GB se compensa con zram.
+- Chrome oficial, no Chromium.
+- OneDrive con onedriver (descarga bajo demanda, cuida el SSD).
+- OnlyOffice queda afuera por ahora.
+
+## Pendientes
+
+- Correr el diagnóstico en la notebook y decidir drivers según el resultado.
+- Probar el script recomendado en una instalación real y ajustar lo que falle.
+- Evaluar una variante para XFCE (Zorin Lite o MX Linux) si 4 GB con GNOME se queda corto.
