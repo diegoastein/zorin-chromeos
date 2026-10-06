@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Script generado por "Panel ChromeOS en Zorin y MX"
-# Equipo: Philco N14P4020 (Celeron, 4 GB). Sistema: Zorin OS Core (GNOME).
+# Equipo: Philco N14P4020 (Celeron, 4 GB). Sistema: MX Linux (XFCE).
 # Módulos: base, region, chrome, zram, updates
 #
 # Uso:
@@ -8,7 +8,7 @@
 #   bash setup.sh             # aplica los cambios (ejecutalo con tu usuario, no como root)
 set -euo pipefail
 DRY_RUN="${DRY_RUN:-0}"
-TARGET="zorin"
+TARGET="mx"
 
 
 say()  { printf '\n\033[1;34m==> %s\033[0m\n' "$*"; }
@@ -49,7 +49,7 @@ xfset() {
 
 if [ "$DRY_RUN" != 1 ]; then
   [ "$(id -u)" -ne 0 ] || { echo "Ejecutá el script con tu usuario; usa sudo solo cuando hace falta."; exit 1; }
-  grep -qi 'ubuntu' /etc/os-release || { echo 'Este script es para Zorin OS / Ubuntu.'; exit 1; }
+  [ -r /etc/debian_version ] && command -v xfconf-query >/dev/null || { echo 'Este script es para MX Linux con XFCE.'; exit 1; }
   [ "$(uname -m)" = x86_64 ] || { echo "Este script es para equipos de 64 bits (x86_64)."; exit 1; }
   sudo -v
 fi
@@ -76,7 +76,7 @@ mod_region() {
     run sudo locale-gen es_AR.UTF-8
   fi
   run sudo update-locale LANG=es_AR.UTF-8
-  gs org.gnome.desktop.input-sources sources "[('xkb', 'latam')]"
+  xfset keyboard-layout /Default/XkbLayout string latam; run sudo localectl set-x11-keymap latam
   NEEDS_REBOOT=1
 }
 

@@ -21,4 +21,4 @@ Sonido y conectividad. El diagnóstico (`scripts/diagnostico-hardware.sh`) tiene
 
 - Correr el diagnóstico en la notebook y decidir drivers según el resultado.
 - Probar el script recomendado en una instalación real y ajustar lo que falle.
-- Evaluar una variante para XFCE (Zorin Lite o MX Linux) si 4 GB con GNOME se queda corto.
+- Variante para MX Linux (XFCE): el panel y los scripts `*-mx.sh` ya están. Falta probarla en una MX real, sobre todo las claves de xfconf, los atajos de xfwm4 y el paquete de zram. Si 4 GB con GNOME se queda corto, MX es el plan B.
