@@ -12,7 +12,7 @@ Todo está en español rioplatense con voseo: README, docs, comentarios, textos 
 
 - `scripts/*.sh` son **generados**. No los edites a mano: se pisan con `tools/build.sh`.
 - Los módulos de bash están dentro de `<script type="text/plain" data-mod="NOMBRE">` (datos, no se ejecutan en la página).
-- El generador es JS puro dentro de `<script id="gen">` (`PWAS`, `ORDER`, `SCHEMES`, `KEYMAPS`, `ZORIN_ONLY`, `TARGETS`, `build()`). `tools/generate.js` lo extrae del HTML con regex y lo evalúa con `new Function`, así que el panel y la CLI usan exactamente el mismo código. Por eso el bloque `gen` no puede depender del DOM ni usar `import`/`require`.
+- El generador es JS puro dentro de `<script id="gen">` (`PWAS`, `ORDER`, `SCHEMES`, `KEYMAPS`, `ZORIN_ONLY`, `TARGETS`, `build()` y `analyzeDiag()`). `tools/generate.js` lo extrae del HTML con regex y lo evalúa con `new Function`, así que el panel y la CLI usan exactamente el mismo código. Por eso el bloque `gen` no puede depender del DOM ni usar `import`/`require`.
 - La interfaz es el último `<script>` (IIFE con `GROUPS`, estado, render, copiar y descargar).
 
 ## Comandos
@@ -23,6 +23,8 @@ bash tools/test.sh           # sintaxis (bash -n), dry-run de cada setup y chequ
 node tools/generate.js --list
 node tools/generate.js --preset rec|min|all [--target zorin|mx] [--out archivo]
 node tools/generate.js --diag
+node tools/generate.js --analyze diagnostico-hardware.txt [--target mx]   # qué módulos de drivers sugiere un diagnóstico
+node tools/test-diag.js      # pruebas de analyzeDiag (las corre test.sh)
 DRY_RUN=1 bash scripts/setup-recomendado.sh   # muestra qué haría, sin cambiar nada
 ```
 
@@ -38,6 +40,16 @@ Reglas del generador:
 - Con `target=mx` se descartan los ids de `ZORIN_ONLY`.
 - `updates_reboot` es una opción de `updates` (la lee `REBOOTLINE`), no un módulo: no está en `ORDER` ni tiene bloque `data-mod`.
 - `diag` es un script aparte (diagnóstico de hardware), no entra en `build()`.
+
+## Análisis del diagnóstico
+
+`analyzeDiag(texto, target)` lee el `diagnostico-hardware.txt` y devuelve `{cores, ramGb, notes, suggest}` (o `{error}`). La pestaña Diagnóstico del panel lo usa al cargar un archivo o pegar el contenido: muestra el resumen y recién al confirmar marca los módulos (`drv_rtl`, `drv_bcm`, `drv_fw`, `drv_audio`, `drv_hwe`). Al cambiar de sistema se vuelve a analizar.
+
+- Parsea por secciones `## ...`; los títulos tienen que coincidir con los que escribe el módulo `diag`. Si cambiás ese script, revisá `analyzeDiag` y `tools/test-diag.js`.
+- Está en el bloque `gen` (sin DOM) para probarlo con Node. El texto del archivo se muestra con `textContent`, nunca con `innerHTML`.
+- `drv_hwe` no se sugiere con `target=mx` (está en `ZORIN_ONLY`).
+- Las reglas (ID `10ec:c821`, Broadcom, mensajes de firmware, audio Intel sin tarjetas) no se probaron con el hardware de la Philco, solo con salidas inventadas y con el diagnóstico de otra PC. Cualquier regla nueva necesita un caso en `tools/test-diag.js`.
+- `diag` fuerza `LC_ALL=C` en `lscpu` y `free` para que el parser no dependa del idioma del sistema.
 
 ## Convenciones de los módulos bash
 
@@ -69,7 +81,7 @@ Las listas están duplicadas y hay que mantenerlas a mano en sincronía:
 
 ## Qué está verificado
 
-`test.sh` solo garantiza sintaxis, que el dry-run termine y que `scripts/` esté al día. **No** prueba que los paquetes, repositorios, claves de `gsettings` o de `xfconf` existan en una Zorin o una MX reales. La variante MX (xfconf, atajos de xfwm4, `zram-tools`) y la barra de Zorin (`org.gnome.shell.extensions.zorin-taskbar`) se escribieron a partir de documentación, sin probarlas. No presentes esos pasos como probados. Los pendientes están en `docs/notas-equipo.md`.
+`test.sh` solo garantiza sintaxis, que el dry-run termine, que `analyzeDiag` cumpla sus casos y que `scripts/` esté al día. **No** prueba que los paquetes, repositorios, claves de `gsettings` o de `xfconf` existan en una Zorin o una MX reales. La variante MX (xfconf, atajos de xfwm4, `zram-tools`) y la barra de Zorin (`org.gnome.shell.extensions.zorin-taskbar`) se escribieron a partir de documentación, sin probarlas. No presentes esos pasos como probados. Los pendientes están en `docs/notas-equipo.md`.
 
 ## Git
 

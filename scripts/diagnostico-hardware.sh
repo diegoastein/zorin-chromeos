@@ -4,7 +4,7 @@ out="$HOME/diagnostico-hardware.txt"
 {
   echo "## Fecha"; date
   echo "## Kernel"; uname -r
-  echo "## CPU y RAM"; lscpu | grep -E 'Model name|^CPU\(s\)'; free -h
+  echo "## CPU y RAM"; LC_ALL=C lscpu | grep -E 'Model name|^CPU\(s\):'; LC_ALL=C free -h
   echo "## Placas PCI de red y audio"; lspci -nnk | grep -A3 -iE 'network|audio'
   echo "## Dispositivos USB"; lsusb
   echo "## Tarjetas de sonido"; aplay -l 2>&1

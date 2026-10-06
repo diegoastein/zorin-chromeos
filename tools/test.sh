@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pruebas: sintaxis de bash, modo de prueba (DRY_RUN) y que scripts/ esté al día con el panel.
+# Pruebas: sintaxis de bash, modo de prueba (DRY_RUN), análisis del diagnóstico y que scripts/ esté al día con el panel.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -20,6 +20,9 @@ for name in setup-recomendado setup-minimo setup-completo setup-recomendado-mx s
     echo "DRY-RUN FALLA   $f"; cat "$tmp/err"; fail=1
   fi
 done
+
+# análisis del diagnóstico de hardware (analyzeDiag)
+if node tools/test-diag.js; then :; else fail=1; fi
 
 # scripts/ debe coincidir con lo que genera el panel hoy
 node tools/generate.js --preset rec --out "$tmp/rec.sh" 2>/dev/null
