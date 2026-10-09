@@ -16,20 +16,46 @@ warn() { printf '\033[1;33m[aviso]\033[0m %s\n' "$*" >&2; }
 MANUAL=()
 NEEDS_REBOOT=0
 manual() { MANUAL+=("$*"); }
+OK_MODS=()
+FAILED_MODS=()
+MOD_FAILED=0
+# run_mod ID: corre mod_ID sin que un error adentro frene el resto del script.
+# Guarda el resultado para el reporte final (finish), usando MOD_FAILED (lo marcan
+# run/sh_c/put cuando algo realmente falla) en vez del código de salida de mod_ID,
+# porque un paso que falla en el medio no corta los pasos siguientes del módulo.
+# mod_base queda afuera a propósito: si falla la actualización base, seguir con el
+# resto no tiene sentido.
+run_mod() {
+  local id="$1"
+  MOD_FAILED=0
+  "mod_$id" || true
+  if [ "$MOD_FAILED" -eq 0 ]; then
+    OK_MODS+=("$id")
+  else
+    FAILED_MODS+=("$id")
+  fi
+}
 
-# run: ejecuta el comando, o solo lo muestra en modo de prueba
-run() { if [ "$DRY_RUN" = 1 ]; then printf '[dry-run] %s\n' "$*"; else "$@"; fi; }
+# run: ejecuta el comando, o solo lo muestra en modo de prueba. Si falla, lo marca
+# para el reporte final en vez de cortar el script.
+run() {
+  if [ "$DRY_RUN" = 1 ]; then printf '[dry-run] %s\n' "$*"; return 0; fi
+  "$@" || { MOD_FAILED=1; warn "Falló: $*"; }
+}
 # sh_c: igual que run, para cadenas con pipes
-sh_c() { if [ "$DRY_RUN" = 1 ]; then printf '[dry-run] %s\n' "$1"; else bash -c "$1"; fi; }
+sh_c() {
+  if [ "$DRY_RUN" = 1 ]; then printf '[dry-run] %s\n' "$1"; return 0; fi
+  bash -c "$1" || { MOD_FAILED=1; warn "Falló: $1"; }
+}
 # put DESTINO [sudo]: escribe el contenido que llega por stdin
 put() {
   local dest="$1" use_sudo="${2:-}"
   if [ "$DRY_RUN" = 1 ]; then
     echo "[dry-run] escribiría $dest"; cat >/dev/null
   elif [ -n "$use_sudo" ]; then
-    sudo mkdir -p "$(dirname "$dest")" && sudo tee "$dest" >/dev/null
+    { sudo mkdir -p "$(dirname "$dest")" && sudo tee "$dest" >/dev/null; } || { MOD_FAILED=1; warn "No se pudo escribir $dest"; }
   else
-    mkdir -p "$(dirname "$dest")" && cat >"$dest"
+    { mkdir -p "$(dirname "$dest")" && cat >"$dest"; } || { MOD_FAILED=1; warn "No se pudo escribir $dest"; }
   fi
 }
 # gs ESQUEMA CLAVE VALOR: aplica un ajuste de GNOME solo si la clave existe en esta versión
@@ -445,6 +471,25 @@ mod_look_favs() {
 
 finish() {
   say "Listo"
+  echo "Módulos aplicados: ${#OK_MODS[@]}. Con errores: ${#FAILED_MODS[@]}."
+  if [ "${#FAILED_MODS[@]}" -gt 0 ]; then
+    echo "No se pudieron completar (revisá los avisos de arriba):"
+    local f
+    for f in "${FAILED_MODS[@]}"; do echo "  - $f"; done
+  fi
+  if [ "$DRY_RUN" != 1 ]; then
+    {
+      echo "Reporte de instalación - $(date)"
+      echo
+      echo "Aplicados sin errores (${#OK_MODS[@]}):"
+      local m
+      for m in "${OK_MODS[@]}"; do echo "  - $m"; done
+      echo
+      echo "Con errores (${#FAILED_MODS[@]}):"
+      for m in "${FAILED_MODS[@]}"; do echo "  - $m"; done
+    } > "$HOME/REPORTE-INSTALACION.txt"
+    echo "Reporte guardado en ~/REPORTE-INSTALACION.txt"
+  fi
   if [ "${#MANUAL[@]}" -gt 0 ]; then
     echo "Pasos que quedan por hacer a mano:"
     local i=1 m
@@ -456,28 +501,28 @@ finish() {
 
 main() {
   mod_base
-  mod_backup_snapshot
-  mod_region
-  mod_chrome
-  mod_pwas
-  mod_onedrive
-  mod_accounts
-  mod_drv_wifi_ps
-  mod_drv_audio_unmute
-  mod_drv_audio_jd
-  mod_zram
-  mod_perf_anim
-  mod_perf_tracker
-  mod_perf_power
-  mod_updates
-  mod_look_shelf
-  mod_look_wallpaper
-  mod_look_font
-  mod_look_icons
-  mod_look_scroll
-  mod_look_touchpad
-  mod_look_keys
-  mod_look_favs
+  run_mod backup_snapshot
+  run_mod region
+  run_mod chrome
+  run_mod pwas
+  run_mod onedrive
+  run_mod accounts
+  run_mod drv_wifi_ps
+  run_mod drv_audio_unmute
+  run_mod drv_audio_jd
+  run_mod zram
+  run_mod perf_anim
+  run_mod perf_tracker
+  run_mod perf_power
+  run_mod updates
+  run_mod look_shelf
+  run_mod look_wallpaper
+  run_mod look_font
+  run_mod look_icons
+  run_mod look_scroll
+  run_mod look_touchpad
+  run_mod look_keys
+  run_mod look_favs
   manual "Aspecto: la barra, la letra y los íconos se ven completos al cerrar sesión y volver a entrar."
   finish
 }

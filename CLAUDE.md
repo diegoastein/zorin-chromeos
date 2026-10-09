@@ -32,7 +32,7 @@ Hace falta Node.js (no hay `package.json` ni dependencias). Después de editar e
 
 ## Cómo se arma un script
 
-`build(state, mods)` concatena: `header`, `helpers`, los módulos elegidos (en el orden de `ORDER`), `footer` y un `main()` que llama a `mod_base` y a cada `mod_<id>`. Antes reemplaza los marcadores `@@NOMBRE@@` (`TARGET`, `TARGETNAME`, `OSCHECK`, `KEYMAPLINE`, `PWALIST`, `SCHEME`, `FAVS`, `REBOOTLINE`, `MODULES`). Un marcador que no existe se reemplaza por vacío sin avisar.
+`build(state, mods)` concatena: `header`, `helpers`, los módulos elegidos (en el orden de `ORDER`), `footer` y un `main()` que llama a `mod_base` y, para cada `mod_<id>` elegido, a `run_mod <id>` (no a `mod_<id>` directo). Antes reemplaza los marcadores `@@NOMBRE@@` (`TARGET`, `TARGETNAME`, `OSCHECK`, `KEYMAPLINE`, `PWALIST`, `SCHEME`, `FAVS`, `REBOOTLINE`, `MODULES`). Un marcador que no existe se reemplaza por vacío sin avisar.
 
 Reglas del generador:
 
@@ -58,6 +58,7 @@ Reglas del generador:
 - Cada módulo define una función `mod_<id>` que anuncia lo que hace con `say "..."` (en `mod_perf_anim` el `say` va dentro de cada rama por sistema).
 - Usá los helpers de `helpers`: `run` (ejecuta o, en dry-run, solo imprime), `sh_c` (para cadenas con pipes), `put DEST [sudo]` (escribe stdin), `gs ESQUEMA CLAVE VALOR` (gsettings solo si la clave existe), `xfset CANAL PROP TIPO VALOR` (xfconf), `warn`, `manual "..."` (paso manual que se imprime al final y se guarda en `~/PASOS-MANUALES.txt`) y `NEEDS_REBOOT=1`.
 - No ejecutes nada que cambie el sistema sin pasar por `run`, `sh_c`, `put`, `gs` o `xfset`; si no, `DRY_RUN=1` deja de ser inocuo.
+- Que un paso falle no corta el script ni el resto del módulo: `run` y `sh_c` atrapan el error, avisan con `warn "Falló: ..."` y marcan `MOD_FAILED=1` en vez de propagarlo (`gs`/`xfset` ya avisaban y seguían antes de esto). `main()` llama a cada módulo con `run_mod <id>` (helpers), que resetea `MOD_FAILED`, corre `mod_<id>` y, según haya quedado la bandera, lo suma a `OK_MODS` o a `FAILED_MODS`. `finish` imprime el resumen y lo guarda en `~/REPORTE-INSTALACION.txt`. Si agregás un comando de cambio de sistema que no pasa por esos helpers (poco común), ese fallo sí corta el módulo en el punto donde ocurre (no el script completo, porque `run_mod` llama a `"mod_$id" || true`), pero no queda registrado en el reporte.
 - Cuando algo depende del sistema, ramificá con `if [ "$TARGET" = mx ]`.
 - Si un ajuste puede no existir en otra versión, que avise con `warn` y siga; el script no debe cortarse por eso (el script usa `set -euo pipefail`).
 - Fuera de `DRY_RUN`, el script se niega a correr como root o en otra arquitectura que no sea x86_64, y comprueba el sistema con `OSCHECK`; lo hace `helpers`.

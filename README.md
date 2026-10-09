@@ -45,7 +45,7 @@ Pensado para una **Philco N14P4020** (Celeron de 2 núcleos, 4 GB de RAM, SSD de
    ```bash
    bash scripts/setup-recomendado.sh
    ```
-7. **Reiniciar** y seguir los pasos manuales que el script imprime al final y guarda en `~/PASOS-MANUALES.txt`.
+7. **Reiniciar** y seguir los pasos manuales que el script imprime al final y guarda en `~/PASOS-MANUALES.txt`. Si algún módulo no se pudo aplicar por completo, el script sigue con el resto y deja un resumen de qué anduvo y qué no en `~/REPORTE-INSTALACION.txt`.
 
 ## Armar un script a medida
 
@@ -61,7 +61,7 @@ node tools/generate.js --preset rec --target mx --out setup.sh # el mismo preset
 
 ## Módulos
 
-**Navegador y apps:** Google Chrome oficial (repositorio de Google), Chrome al iniciar sesión, lanzadores de apps web (Word, Excel, PowerPoint, OneDrive, Outlook, Gmail, Drive, Calendar, Docs, Sheets, Slides) y OneDrive como carpeta con onedriver.
+**Navegador y apps:** Google Chrome oficial (repositorio de Google), Chrome al iniciar sesión, lanzadores de apps web (Word, Excel, PowerPoint, OneDrive, Outlook, Gmail, Drive, Calendar, Docs, Sheets, Slides), OneDrive como carpeta con onedriver y, opcional, quitar LibreOffice y Brave si están instalados (para liberar espacio en el SSD de 128 GB).
 
 **Idioma y teclado:** español de Argentina, zona horaria de Buenos Aires y distribución de teclado a elección.
 
@@ -85,6 +85,8 @@ node tools/generate.js --preset rec --target mx --out setup.sh # el mismo preset
 - La barra estilo ChromeOS en Zorin ajusta la barra de Zorin (`zorin-taskbar`, derivada de dash-to-panel). Los nombres de las claves salen de dash-to-panel y no se verificaron en una Zorin real. Si una clave no existe, el script avisa y deja el paso manual en Zorin Appearance.
 - Los fondos oficiales de ChromeOS son de Google y no se incluyen. El script instala un fondo propio con colores parecidos.
 - Los lanzadores de apps web abren Chrome con `--app`. Para íconos propios, instalá cada una desde Chrome.
+- Si un módulo falla (paquete sin repositorio, sin conexión, etc.), el script avisa y sigue con el resto en vez de cortarse; al final deja en `~/REPORTE-INSTALACION.txt` qué módulos se aplicaron sin errores y cuáles no. Esto se probó a mano simulando fallas, no se verificó contra fallas reales de `apt` en una Zorin o una MX.
+- Quitar LibreOffice y Brave (`cleanup_apps`) se probó solo en modo de prueba. El patrón `'libreoffice*'` para `apt-get purge` no se verificó contra una instalación real de Zorin ni de MX.
 
 ## Diferencias con MX Linux (XFCE)
 
