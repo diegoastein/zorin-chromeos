@@ -10,6 +10,14 @@ No se pudo confirmar desde las fichas el chip de WiFi ni el de audio. Por eso el
 
 Sonido y conectividad. El diagnóstico (`scripts/diagnostico-hardware.sh`) tiene que correrse desde un pendrive de Zorin en modo de prueba para ver qué chip hay y si funciona con el kernel de Zorin.
 
+## Audio (verificado el 2026-10-09)
+
+La Philco usa el driver SOF (`sof-audio-pci-intel-apl`) con el códec ES8336 (tarjeta `sof-essx8336`). El driver clásico de Intel (HDA) no sirve acá.
+
+Síntoma: después de probar el micrófono en Google Meet solo aparecía la salida "Headphones" y los parlantes no sonaban. Causa: la detección del conector marcaba auriculares conectados (`Headphone Jack = on`) con el parlante apagado (`Speaker Switch = off`). Con PipeWire apagado y `Speaker Switch` en `on` el parlante sonaba, así que el hardware está bien.
+
+Arreglo: `options snd_soc_sof_es8336 quirk=64` en `/etc/modprobe.d/99-philco-audio.conf` (bit `JD_INVERTED`) y reiniciar. Confirmado: `dmesg` muestra `quirk mask 0x40` y el sonido funciona. Lo aplica el módulo `drv_audio_jd` del panel.
+
 ## Decisiones tomadas
 
 - Base: Zorin OS Core (GNOME), por la integración de Cuentas en línea. Con 4 GB se compensa con zram.

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Script generado por "Panel ChromeOS en Zorin y MX"
 # Equipo: Philco N14P4020 (Celeron, 4 GB). Sistema: MX Linux (XFCE).
-# Módulos: base, backup_snapshot, region, chrome, chrome_autostart, pwas, onedrive, drv_fw, drv_rtl, drv_bcm, drv_wifi_ps, drv_audio, drv_audio_fw, drv_audio_unmute, drv_brightness, zram, perf_anim, perf_power, perf_services, updates, look_shelf, look_wallpaper, look_font, look_icons, look_scroll, look_touchpad, look_keys, look_favs
+# Módulos: base, backup_snapshot, region, chrome, chrome_autostart, pwas, onedrive, drv_fw, drv_rtl, drv_bcm, drv_wifi_ps, drv_audio, drv_audio_fw, drv_audio_unmute, drv_audio_jd, drv_brightness, zram, perf_anim, perf_power, perf_services, updates, look_shelf, look_wallpaper, look_font, look_icons, look_scroll, look_touchpad, look_keys, look_favs
 #
 # Uso:
 #   DRY_RUN=1 bash setup.sh   # muestra lo que haría, sin cambiar nada
@@ -259,6 +259,25 @@ mod_drv_audio_unmute() {
     fi
   fi
   manual "Audio: si el sonido sigue sin salir por los parlantes o los auriculares, abrí Configuración, Sonido, y elegí el dispositivo de salida a mano."
+}
+
+
+mod_drv_audio_jd() {
+  say "Audio ES8336: invertir la detección del conector de auriculares (Philco)"
+  if [ "$DRY_RUN" != 1 ]; then
+    if ! grep -qi 'N14P4020' /sys/class/dmi/id/product_name 2>/dev/null; then
+      warn "Este ajuste solo está probado en la Philco N14P4020; se omite en este equipo."
+      return 0
+    fi
+    if ! grep -qiE 'es8336|essx8336' /proc/asound/cards 2>/dev/null; then
+      warn "No se encontró la tarjeta de sonido ES8336; se omite."
+      return 0
+    fi
+  fi
+  printf 'options snd_soc_sof_es8336 quirk=64\n' | put /etc/modprobe.d/99-philco-audio.conf sudo
+  run sudo update-initramfs -u
+  NEEDS_REBOOT=1
+  manual "Audio (Philco): después de reiniciar tienen que sonar los parlantes y el conector tiene que detectar los auriculares al enchufarlos. Si algo sale peor, deshacelo con  sudo rm /etc/modprobe.d/99-philco-audio.conf  y  sudo update-initramfs -u  y reiniciá."
 }
 
 
@@ -528,6 +547,7 @@ main() {
   mod_drv_audio
   mod_drv_audio_fw
   mod_drv_audio_unmute
+  mod_drv_audio_jd
   mod_drv_brightness
   mod_zram
   mod_perf_anim

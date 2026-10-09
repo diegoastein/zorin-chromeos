@@ -48,7 +48,7 @@ Reglas del generador:
 
 - Parsea por secciones `## ...`; los títulos tienen que coincidir con los que escribe el módulo `diag`. Si cambiás ese script, revisá `analyzeDiag` y `tools/test-diag.js`.
 - Está en el bloque `gen` (sin DOM) para probarlo con Node. El texto del archivo se muestra con `textContent`, nunca con `innerHTML`.
-- Audio SOF/ES8336 (como el de la Philco, `sof-essx8336`): `analyzeDiag` no sugiere `drv_audio` porque el driver HDA clásico dejaría sin tarjeta de sonido. Si `Headphone Jack` está en `on` y `Speaker Switch` en `off`, avisa que falla la detección del conector y sugiere `drv_audio_unmute`.
+- Audio SOF/ES8336 (como el de la Philco, `sof-essx8336`): `analyzeDiag` no sugiere `drv_audio` porque el driver HDA clásico dejaría sin tarjeta de sonido. Si `Headphone Jack` está en `on` y `Speaker Switch` en `off`, avisa que falla la detección del conector y sugiere `drv_audio_jd`. Ese módulo escribe `options snd_soc_sof_es8336 quirk=64` (bit 6, `SOF_ES8336_JD_INVERTED`, según `sound/soc/intel/boards/sof_es8336.c`) y solo actúa si el equipo es la N14P4020 y existe la tarjeta ES8336; está verificado en la Philco, no en otras placas.
 - `drv_hwe` no se sugiere con `target=mx` (está en `ZORIN_ONLY`).
 - Las reglas (ID `10ec:c821`, Broadcom, mensajes de firmware, audio Intel sin tarjetas) no se probaron con el hardware de la Philco, solo con salidas inventadas y con el diagnóstico de otra PC. Cualquier regla nueva necesita un caso en `tools/test-diag.js`.
 - `diag` fuerza `LC_ALL=C` en `lscpu` y `free` para que el parser no dependa del idioma del sistema.

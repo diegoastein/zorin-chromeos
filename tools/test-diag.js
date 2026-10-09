@@ -75,7 +75,7 @@ function diagMixer(extra) {
 }
 r = analyzeDiag(diagMixer(mixer('on', 'off')), 'zorin');
 check('SOF/ES8336 con jack=on y parlante apagado: no sugiere drv_audio', ids(r).indexOf('drv_audio,') < 0 && ids(r).split(',').indexOf('drv_audio') < 0, ids(r));
-check('SOF/ES8336 con jack=on y parlante apagado: sugiere drv_audio_unmute y avisa', ids(r) === 'drv_audio_unmute' && levels(r).indexOf('warn') >= 0, ids(r) + ' / ' + levels(r));
+check('SOF/ES8336 con jack=on y parlante apagado: sugiere drv_audio_jd y avisa', ids(r) === 'drv_audio_jd' && levels(r).indexOf('warn') >= 0, ids(r) + ' / ' + levels(r));
 r = analyzeDiag(diagMixer(mixer('off', 'on')), 'zorin');
 check('SOF/ES8336 sano: no sugiere nada', ids(r) === '', ids(r));
 r = analyzeDiag(diag({ pci: SOF_PCI, snd: SOF_SND }), 'zorin');
