@@ -13,7 +13,7 @@ Pensado para una **Philco N14P4020** (Celeron de 2 núcleos, 4 GB de RAM, SSD de
 | `scripts/setup-minimo.sh` | Solo Chrome, zram, región y actualizaciones automáticas (Zorin). |
 | `scripts/setup-completo.sh` | Todos los módulos, incluidos los drivers (Zorin). |
 | `scripts/setup-recomendado-mx.sh`, `setup-minimo-mx.sh`, `setup-completo-mx.sh` | Las mismas combinaciones para MX Linux (XFCE). |
-| `scripts/diagnostico-hardware.sh` | Reúne datos de WiFi, audio y kernel para decidir qué drivers hacen falta. |
+| `scripts/diagnostico-hardware.sh` | Reúne datos de WiFi, audio (codec, firmware SOF, perfiles de PipeWire/PulseAudio), cámara, micrófono, brillo y kernel para decidir qué drivers hacen falta. |
 | `tools/generate.js` | Genera un script a medida desde la terminal (necesita Node.js). |
 | `tools/build.sh` | Regenera `scripts/` a partir del panel. |
 | `tools/test.sh` | Revisa la sintaxis y corre cada script en modo de prueba. |
@@ -66,9 +66,11 @@ node tools/generate.js --preset rec --target mx --out setup.sh # el mismo preset
 
 **Aspecto ChromeOS y atajos:** barra abajo con el menú de apps a la izquierda, las apps al centro y el reloj y el menú de sistema a la derecha, fondo de pantalla propio inspirado en ChromeOS (claro y oscuro), letra Roboto, íconos Papirus, tema claro u oscuro, desplazamiento natural, clic con toque, atajos tipo ChromeOS (captura con Ctrl+Shift+F5, ventanas a izquierda y derecha con Alt+[ y Alt+]) y apps ancladas.
 
-**Rendimiento:** zram, sin animaciones, sin indexación de archivos, servicios innecesarios apagados, actualizaciones automáticas (con reinicio nocturno opcional).
+**Rendimiento y batería:** zram, sin animaciones, sin indexación de archivos, servicios innecesarios apagados, ahorro de energía con TLP, actualizaciones automáticas (con reinicio nocturno opcional).
 
-**Sonido y WiFi:** ahorro de energía del WiFi desactivado, reinstalación de firmware, drivers Realtek 8821CE y Broadcom (solo si el chip existe), kernel HWE y driver de audio clásico de Intel.
+**Respaldo:** punto de restauración con Timeshift antes de aplicar drivers o cambios de kernel.
+
+**Sonido, WiFi y otros chips:** ahorro de energía del WiFi desactivado, reinstalación de firmware, drivers Realtek 8821CE y Broadcom (solo si el chip existe), kernel HWE, driver de audio clásico de Intel (HDA en vez de SOF), reinstalación del firmware SOF (lo opuesto, por si falta la topología), desmutear y fijar la salida analógica (no toca drivers), y control nativo de brillo de pantalla.
 
 ## Qué está probado y qué no
 

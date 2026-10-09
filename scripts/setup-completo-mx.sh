@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Script generado por "Panel ChromeOS en Zorin y MX"
 # Equipo: Philco N14P4020 (Celeron, 4 GB). Sistema: MX Linux (XFCE).
-# Módulos: base, region, chrome, chrome_autostart, pwas, onedrive, drv_fw, drv_rtl, drv_bcm, drv_wifi_ps, drv_audio, zram, perf_anim, perf_services, updates, look_shelf, look_wallpaper, look_font, look_icons, look_scroll, look_touchpad, look_keys, look_favs
+# Módulos: base, backup_snapshot, region, chrome, chrome_autostart, pwas, onedrive, drv_fw, drv_rtl, drv_bcm, drv_wifi_ps, drv_audio, drv_audio_fw, drv_audio_unmute, drv_brightness, zram, perf_anim, perf_power, perf_services, updates, look_shelf, look_wallpaper, look_font, look_icons, look_scroll, look_touchpad, look_keys, look_favs
 #
 # Uso:
 #   DRY_RUN=1 bash setup.sh   # muestra lo que haría, sin cambiar nada
@@ -61,6 +61,19 @@ mod_base() {
   run sudo apt-get -y upgrade
   run sudo apt-get install -y curl wget gpg ca-certificates git
   run sudo install -d -m 0755 /etc/apt/keyrings
+}
+
+
+mod_backup_snapshot() {
+  say "Respaldo: instalando Timeshift y creando un punto de restauración"
+  run sudo apt-get install -y timeshift
+  if [ "$DRY_RUN" = 1 ]; then
+    echo "[dry-run] sudo timeshift --create --comments 'antes de aplicar el script' --tags D"
+  else
+    sudo timeshift --create --comments "Antes de aplicar el script ($(date +%F))" --tags D \
+      || warn "No se pudo crear el snapshot automáticamente; abrí Timeshift y creá uno a mano antes de seguir."
+  fi
+  manual "Respaldo: si algo sale mal, abrí Timeshift (menú de apps) y restaurá el punto de antes de este script."
 }
 
 
@@ -219,6 +232,45 @@ mod_drv_audio() {
 }
 
 
+mod_drv_audio_fw() {
+  say "Audio: reinstalando el firmware y la topología de SOF"
+  run sudo apt-get install -y --reinstall sof-firmware alsa-ucm-conf
+  run sudo update-initramfs -u
+  NEEDS_REBOOT=1
+  manual "Audio (SOF): este paso es lo opuesto al driver clásico de Intel. Probá uno de los dos, no los dos juntos, y mirá la sección Codec de audio del diagnóstico para decidir cuál."
+}
+
+
+mod_drv_audio_unmute() {
+  say "Audio: desmuteando canales y fijando la salida analógica"
+  local canal sink
+  for canal in Master Speaker Headphone PCM; do
+    run amixer -q set "$canal" 85% unmute 2>/dev/null || true
+  done
+  if [ "$DRY_RUN" = 1 ]; then
+    echo "[dry-run] buscaría un sink analógico con pactl y lo pondría por defecto"
+  else
+    sink="$(pactl list sinks short 2>/dev/null | grep -i analog | awk '{print $1}' | head -n1)"
+    if [ -n "$sink" ]; then
+      pactl set-default-sink "$sink" || warn "No se pudo fijar el sink analógico como predeterminado."
+      pactl set-sink-mute "$sink" 0 || true
+    else
+      warn "pactl no encontró un sink analógico; puede que la tarjeta solo tenga salida digital."
+    fi
+  fi
+  manual "Audio: si el sonido sigue sin salir por los parlantes o los auriculares, abrí Configuración, Sonido, y elegí el dispositivo de salida a mano."
+}
+
+
+mod_drv_brightness() {
+  say "Brillo: pasando el control de la pantalla al driver nativo"
+  printf 'options video acpi_backlight=native\n' | put /etc/modprobe.d/99-brillo.conf sudo
+  run sudo update-initramfs -u
+  NEEDS_REBOOT=1
+  manual "Brillo: si las teclas de brillo siguen sin responder, cambiá native por vendor en /etc/modprobe.d/99-brillo.conf y repetí  sudo update-initramfs -u."
+}
+
+
 mod_zram() {
   say "Activando zram (memoria comprimida) y ajustes de memoria"
   if [ "$TARGET" = mx ]; then
@@ -245,6 +297,14 @@ mod_perf_anim() {
     say "Desactivando animaciones del escritorio"
     gs org.gnome.desktop.interface enable-animations false
   fi
+}
+
+
+mod_perf_power() {
+  say "Batería: ahorro de energía con TLP"
+  run sudo apt-get install -y tlp tlp-rdw
+  run sudo systemctl enable --now tlp.service
+  manual "Batería: corré  sudo tlp-stat -b  para ver el estado de la carga y del ahorro de energía."
 }
 
 
@@ -455,6 +515,7 @@ finish() {
 
 main() {
   mod_base
+  mod_backup_snapshot
   mod_region
   mod_chrome
   mod_chrome_autostart
@@ -465,8 +526,12 @@ main() {
   mod_drv_bcm
   mod_drv_wifi_ps
   mod_drv_audio
+  mod_drv_audio_fw
+  mod_drv_audio_unmute
+  mod_drv_brightness
   mod_zram
   mod_perf_anim
+  mod_perf_power
   mod_perf_services
   mod_updates
   mod_look_shelf
