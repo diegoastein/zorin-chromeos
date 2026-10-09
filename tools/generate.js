@@ -7,6 +7,7 @@
 //   node tools/generate.js --preset rec --target mx --out setup-mx.sh
 //   node tools/generate.js --code "zcos1:chrome,zram|target=mx|pwas=word,excel|scheme=system|keymap=latam" --out setup.sh
 //   node tools/generate.js --diag > diag.sh
+//   node tools/generate.js --analyze diagnostico-hardware.txt [--target mx]
 //   node tools/generate.js --list
 
 const fs = require('fs');
@@ -19,7 +20,7 @@ for (const m of html.matchAll(/<script type="text\/plain" data-mod="(\w+)">([\s\
   mods[m[1]] = m[2];
 }
 const gen = html.match(/<script id="gen">([\s\S]*?)<\/script>/)[1];
-const { build, PWAS, SCHEMES, KEYMAPS, TARGETS, ZORIN_ONLY } = new Function(gen + '; return { build, PWAS, SCHEMES, KEYMAPS, TARGETS, ZORIN_ONLY };')();
+const { build, analyzeDiag, PWAS, SCHEMES, KEYMAPS, TARGETS, ZORIN_ONLY } = new Function(gen + '; return { build, analyzeDiag, PWAS, SCHEMES, KEYMAPS, TARGETS, ZORIN_ONLY };')();
 
 // Debe coincidir con las marcas "p" del panel (r = recomendado, m = mínimo).
 const REC = ['backup_snapshot', 'chrome', 'pwas', 'onedrive', 'region', 'accounts', 'look_shelf', 'look_wallpaper', 'look_font', 'look_icons', 'look_scroll', 'look_touchpad',
@@ -56,7 +57,7 @@ function parseCode(text) {
 }
 
 function usage(code) {
-  console.error('Uso: node tools/generate.js (--preset rec|min|all | --code "zcos1:..." | --diag | --list) [--target zorin|mx] [--out archivo]');
+  console.error('Uso: node tools/generate.js (--preset rec|min|all | --code "zcos1:..." | --diag | --analyze diagnostico.txt | --list) [--target zorin|mx] [--out archivo]');
   process.exit(code);
 }
 
@@ -74,6 +75,15 @@ if (args.includes('--list')) {
   output = 'Sistemas: ' + Object.keys(TARGETS).map(k => k + ' (' + TARGETS[k].name + ')').join(', ') +
     '\nMódulos: ' + ALL.join(', ') + '\nSolo Zorin: ' + ZORIN_ONLY.join(', ') + '\nApps web: ' + PWAS.map(p => p.id).join(', ') +
     '\nTemas: ' + Object.keys(SCHEMES).join(', ') + '\nTeclados: ' + KEYMAPS.join(', ') + '\n';
+} else if (opt('--analyze')) {
+  let text;
+  try { text = fs.readFileSync(opt('--analyze'), 'utf8'); }
+  catch (e) { console.error('No se pudo leer ' + opt('--analyze') + ': ' + e.message); process.exit(1); }
+  const r = analyzeDiag(text, forcedTarget || 'zorin');
+  if (r.error) { console.error(r.error); process.exit(1); }
+  const tag = { ok: 'ANDA  ', info: 'DATO  ', warn: 'OJO   ' };
+  output = r.notes.map(n => tag[n.level] + n.text).concat(
+    r.suggest.length ? r.suggest.map(s => 'SUGIERE ' + s.id + ': ' + s.why) : ['No hace falta activar módulos de drivers.']).join('\n') + '\n';
 } else if (args.includes('--diag')) {
   output = mods.diag.replace(/^\n/, '');
 } else if (opt('--preset')) {

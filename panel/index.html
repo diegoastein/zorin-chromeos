@@ -128,6 +128,19 @@ details.group>summary::-webkit-details-marker{display:none}
 .how{margin:0;font-size:13px;color:var(--muted)}
 .how code{font-family:var(--font-mono);font-size:12px;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:1px 5px;white-space:nowrap}
 .steps{margin:0;padding-left:1.2rem;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:4px}
+.loader{display:flex;flex-direction:column;gap:10px;margin-top:4px}
+.loader .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.loader details summary{cursor:pointer;font-size:13px;color:var(--muted)}
+.loader textarea{width:100%;min-height:96px;margin-top:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);font-family:var(--font-mono);font-size:12px}
+.diagres{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.diagres h3{margin:0;font-family:var(--font-display);font-size:1rem}
+.diagres p{margin:0;font-size:13px;color:var(--muted)}
+.diagres p.err{color:var(--warn)}
+ul.findings{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px;font-size:13px}
+ul.findings li{display:flex;gap:8px;align-items:baseline;min-width:0}
+.ftag{flex:none;font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;text-transform:uppercase;border-radius:4px;padding:1px 6px;background:var(--accent-soft);color:var(--ink)}
+.ftag.warn{background:var(--warn-soft);color:var(--warn)}
+.ftag.info{background:var(--bg);border:1px solid var(--line);color:var(--muted)}
 pre.code{margin:0;background:var(--code-bg);color:var(--code-ink);border-radius:8px;padding:14px;font-family:var(--font-mono);font-size:12px;line-height:1.55;overflow:auto;max-height:min(62vh,640px);tab-size:2;white-space:pre}
 pre.code .cm{color:var(--code-dim)}
 .actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
@@ -189,8 +202,22 @@ pre.code .cm{color:var(--code-dim)}
           <ol class="steps">
             <li>Arrancá la notebook desde el pendrive de Zorin y elegí probar sin instalar.</li>
             <li>Probá sonido, WiFi, cámara y micrófono. Si el WiFi no anda, compartí internet por USB desde el celular.</li>
-            <li>Abrí una terminal, pegá este bloque y pasame el archivo <code>diagnostico-hardware.txt</code>.</li>
+            <li>Abrí una terminal, pegá este bloque y esperá a que diga que el archivo está listo.</li>
+            <li>Cargá acá abajo el archivo <code>diagnostico-hardware.txt</code> y el panel te dice qué módulos de drivers activar.</li>
           </ol>
+          <div class="loader">
+            <div class="row">
+              <input type="file" id="diagfile" accept=".txt,text/plain" hidden>
+              <button class="btn" type="button" id="diagload">Cargar diagnóstico</button>
+              <span class="how">El archivo se lee en este navegador, no se sube a ningún lado.</span>
+            </div>
+            <details>
+              <summary>O pegá el contenido en vez de cargar el archivo</summary>
+              <textarea id="diagpaste" spellcheck="false" aria-label="Contenido del diagnóstico"></textarea>
+              <div class="row"><button class="btn ghost" type="button" id="diagparse">Analizar lo pegado</button></div>
+            </details>
+            <div class="diagres" id="diagresult" hidden aria-live="polite"></div>
+          </div>
         </div>
         <pre class="code" id="code" tabindex="0" aria-label="Contenido del script"></pre>
         <div class="actions">
@@ -856,7 +883,7 @@ out="$HOME/diagnostico-hardware.txt"
 {
   echo "## Fecha"; date
   echo "## Kernel"; uname -r
-  echo "## CPU y RAM"; lscpu | grep -E 'Model name|^CPU\(s\)'; free -h
+  echo "## CPU y RAM"; LC_ALL=C lscpu | grep -E 'Model name|^CPU\(s\):'; LC_ALL=C free -h
   echo "## Placas PCI de red y audio"; lspci -nnk | grep -A3 -iE 'network|audio'
   echo "## Dispositivos USB"; lsusb
   echo "## Tarjetas de sonido"; aplay -l 2>&1
@@ -970,6 +997,105 @@ function build(state, mods){
     manual: (script.match(/^\s*manual "/gm) || []).length,
     reboot: chosen.some(id => /NEEDS_REBOOT=1/.test(mods[id]))
   };
+}
+
+// Lee el texto de diagnostico-hardware.txt y propone módulos de drivers. Sin DOM: se prueba con Node (tools/test-diag.js).
+// Devuelve {error} si no parece un diagnóstico, o {cores, ramGb, notes:[{level,text}], suggest:[{id,why}]}.
+// level: ok (anda), info (dato), warn (requiere atención). Las reglas se apoyan en IDs de PCI y mensajes del kernel
+// que no se probaron en la Philco: por eso el panel muestra el resumen y deja confirmar antes de marcar nada.
+function analyzeDiag(text, target){
+  const sec = {};
+  let cur = null;
+  String(text || '').split(/\r?\n/).forEach(line => {
+    const h = line.match(/^## (.+?)\s*$/);
+    if (h) { cur = h[1]; sec[cur] = []; } else if (cur) sec[cur].push(line);
+  });
+  const pick = re => { const k = Object.keys(sec).find(n => re.test(n)); return k ? sec[k] : null; };
+  const cpu = pick(/^CPU/), pci = pick(/^Placas PCI/), usb = pick(/^Dispositivos USB/), snd = pick(/^Tarjetas de sonido/),
+    rf = pick(/^Bloqueos/), net = pick(/^Interfaces de red/), kmsg = pick(/^Mensajes del kernel/);
+  if (!pci && !snd && !kmsg && !net) {
+    return { error: 'Esto no parece un diagnóstico de hardware. Tiene que ser el archivo diagnostico-hardware.txt que genera el script de la pestaña Diagnóstico.' };
+  }
+  const notes = [], suggest = [];
+  const note = (level, t) => notes.push({ level: level, text: t });
+  const canUse = id => target !== 'mx' || ZORIN_ONLY.indexOf(id) < 0;
+  const add = (id, why) => { if (canUse(id) && !suggest.some(s => s.id === id)) suggest.push({ id: id, why: why }); };
+
+  // Equipo: sirve para avisar si el archivo salió de otra máquina
+  const cpuText = (cpu || []).join('\n');
+  const cm = cpuText.match(/^CPU\(s\):\s+(\d+)/m);
+  const mm = cpuText.match(/^(?:Mem|Memoria):\s+([\d.,]+)\s*([KMGT])/m);
+  const cores = cm ? parseInt(cm[1], 10) : null;
+  let ramGb = null;
+  if (mm) {
+    const n = parseFloat(mm[1].replace(',', '.'));
+    ramGb = { K: 1 / 1048576, M: 1 / 1024, G: 1, T: 1024 }[mm[2]] * n;
+  }
+  if ((cores !== null && cores > 2) || (ramGb !== null && ramGb > 4.5)) {
+    note('warn', 'Este diagnóstico no parece de la Philco (2 núcleos y 4 GB): figuran ' + (cores !== null ? cores + ' núcleos' : 'núcleos desconocidos') +
+      (ramGb !== null ? ' y ' + ramGb.toFixed(1).replace('.', ',') + ' GB de RAM' : '') + '. Si lo corriste en otra máquina, lo que sigue no vale para la notebook.');
+  }
+
+  // Dispositivos PCI de red y audio (lspci -nnk)
+  const devs = [];
+  let d = null;
+  (pci || []).forEach(line => {
+    const m = line.match(/^[0-9a-f]{2}:[0-9a-f]{2}\.\d\s+(.+?)\s+\[[0-9a-f]{4}\]:\s*(.+?)\s+\[([0-9a-f]{4}):([0-9a-f]{4})\]\s*(?:\(rev [0-9a-f]+\))?\s*$/i);
+    if (m) { d = { cls: m[1], name: m[2], id: (m[3] + ':' + m[4]).toLowerCase(), driver: false }; devs.push(d); return; }
+    if (line.trim() === '--') { d = null; return; }
+    if (d && /Kernel driver in use:/i.test(line)) d.driver = true;
+  });
+  const nets = devs.filter(x => /network controller/i.test(x.cls));
+  const auds = devs.filter(x => /audio/i.test(x.cls));
+
+  // WiFi
+  const wifiRows = (net || []).filter(l => /^\s*\S+\s+wifi\s/i.test(l));
+  const wifiUp = wifiRows.some(l => /^\s*\S+\s+wifi\s+(conectado|connected)\b/i.test(l));
+  const usbWifi = (usb || []).filter(l => /wireless|wlan|802\.11|wi-?fi/i.test(l)).map(l => l.replace(/^Bus \d+ Device \d+: ID /, '').trim());
+  nets.forEach(n => {
+    if (n.driver && wifiRows.length) {
+      note('ok', 'WiFi: ' + n.name + ' tiene driver y el sistema ve la interfaz' + (wifiUp ? ' (está conectado).' : '.'));
+    } else if (n.id === '10ec:c821') {
+      add('drv_rtl', 'Hay un Realtek 8821CE y el sistema no lo está usando.');
+    } else if (/broadcom/i.test(n.name) || n.id.indexOf('14e4:') === 0) {
+      add('drv_bcm', 'Hay una placa WiFi Broadcom (' + n.name + ') y el sistema no la está usando.');
+    } else if (canUse('drv_hwe')) {
+      add('drv_hwe', 'La placa de red ' + n.name + ' no tiene driver cargado; un kernel más nuevo puede traerlo.');
+    } else {
+      note('warn', 'La placa de red ' + n.name + ' no tiene driver cargado. En MX no existe el kernel HWE de Ubuntu: buscá el chip (' + n.id + ') en la documentación de Debian.');
+    }
+  });
+  if (!nets.length) {
+    if (usbWifi.length) note('info', 'WiFi por USB: ' + usbWifi[0] + '. ' + (wifiUp ? 'Está conectado.' : 'No figura conectado.'));
+    else if (wifiRows.length) note('ok', 'Hay una interfaz WiFi' + (wifiUp ? ' y está conectada.' : ', pero no está conectada.'));
+    else note('warn', 'No se detectó ninguna placa WiFi, ni interna ni por USB.');
+  }
+  const rk = (rf || []).join('\n');
+  if (/hard blocked:\s*yes/i.test(rk)) note('warn', 'El WiFi está bloqueado por hardware (interruptor físico o tecla de modo avión).');
+  else if (/soft blocked:\s*yes/i.test(rk)) note('warn', 'El WiFi está bloqueado por software (modo avión). Se libera con: rfkill unblock wifi');
+
+  // Firmware que el kernel no pudo cargar
+  const fwRe = /direct firmware load for \S+ failed|failed to (?:load|request) firmware|firmware(?: file)? .{0,40}not found|error loading firmware|unable to load firmware/i;
+  const fwLines = (kmsg || []).filter(l => fwRe.test(l));
+  if (fwLines.length) add('drv_fw', 'El kernel avisa que no pudo cargar firmware (' + fwLines.length + (fwLines.length === 1 ? ' mensaje' : ' mensajes') + ').');
+
+  // Audio
+  if (snd) {
+    const hasCard = snd.some(l => /^(tarjeta|card)\s+\d+:/i.test(l));
+    const analog = snd.some(l => /analog/i.test(l));
+    const unbound = auds.filter(a => !a.driver);
+    const intel = auds.some(a => a.id.indexOf('8086:') === 0 || /intel/i.test(a.name));
+    if (hasCard && analog && !unbound.length) {
+      note('ok', 'Audio: el sistema reconoce la salida analógica.');
+    } else if (intel) {
+      add('drv_audio', hasCard ? 'Solo se ven salidas digitales o HDMI, falta la analógica.' : 'El sistema no ve ninguna tarjeta de sonido.');
+    } else if (!hasCard || !analog) {
+      note('warn', 'Audio: ' + (hasCard ? 'no hay salida analógica' : 'no hay ninguna tarjeta de sonido') + ' y el chip no es Intel, así que el módulo de audio clásico no aplica.' +
+        (auds.length ? ' Chip: ' + auds[0].name + '.' : ''));
+    }
+    if (unbound.length && !intel) add('drv_hwe', 'El chip de audio ' + unbound[0].name + ' no tiene driver cargado; un kernel más nuevo puede traerlo.');
+  }
+  return { cores: cores, ramGb: ramGb, notes: notes, suggest: suggest };
 }
 </script>
 
@@ -1138,6 +1264,7 @@ function build(state, mods){
     // Los módulos que no aplican al sistema elegido se apagan para que el script no quede con cosas que no existen
     ITEMS.forEach(function(i){ if (!applicable(i.id)) state.on.delete(i.id); });
     render();
+    if (diagText) showDiag(analyzeDiag(diagText, state.target));
   }
 
   var current = {text:''};
@@ -1268,6 +1395,81 @@ function build(state, mods){
   }
   $('#tab-install').addEventListener('click', function(){ setTab('install'); });
   $('#tab-diag').addEventListener('click', function(){ setTab('diag'); });
+  // Diagnóstico: se lee el archivo en el navegador, se resume lo detectado y recién al confirmar se marcan los módulos
+  function el(tag, cls, text){
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  }
+  function itemName(id){
+    for (var i = 0; i < ITEMS.length; i++) if (ITEMS[i].id === id) return ITEMS[i].name;
+    return id;
+  }
+  function showDiag(res){
+    var box = $('#diagresult');
+    while (box.firstChild) box.removeChild(box.firstChild);
+    box.hidden = false;
+    if (res.error) { box.appendChild(el('p', 'err', res.error)); return; }
+    box.appendChild(el('h3', '', 'Lo que detecté'));
+    if (res.notes.length) {
+      var ul = el('ul', 'findings');
+      res.notes.forEach(function(n){
+        var li = el('li');
+        li.appendChild(el('span', 'ftag' + (n.level === 'ok' ? '' : ' ' + n.level), n.level === 'ok' ? 'Anda' : n.level === 'warn' ? 'Ojo' : 'Dato'));
+        li.appendChild(el('span', '', n.text));
+        ul.appendChild(li);
+      });
+      box.appendChild(ul);
+    }
+    if (res.suggest.length) {
+      box.appendChild(el('p', '', 'Módulos que sugiero activar:'));
+      var sl = el('ul', 'findings');
+      res.suggest.forEach(function(s){
+        var li = el('li');
+        li.appendChild(el('span', 'ftag', 'Sugerido'));
+        var t = el('span');
+        t.appendChild(el('b', '', itemName(s.id)));
+        t.appendChild(document.createTextNode(': ' + s.why));
+        li.appendChild(t);
+        sl.appendChild(li);
+      });
+      box.appendChild(sl);
+      var btn = el('button', 'btn', 'Marcar estos módulos');
+      btn.type = 'button';
+      btn.addEventListener('click', function(){
+        res.suggest.forEach(function(s){ state.on.add(s.id); });
+        $('#g-hw').open = true;
+        render();
+        setTab('install');
+        toast(res.suggest.length === 1 ? 'Se marcó 1 módulo' : 'Se marcaron ' + res.suggest.length + ' módulos');
+      });
+      var row = el('div', 'row');
+      row.appendChild(btn);
+      box.appendChild(row);
+    } else {
+      var warns = res.notes.some(function(n){ return n.level === 'warn'; });
+      box.appendChild(el('p', '', warns ? 'Ningún módulo del panel resuelve los avisos de arriba.' : 'No hace falta activar ningún módulo de drivers.'));
+    }
+  }
+  var diagText = '';
+  function analyze(text){
+    diagText = text;
+    showDiag(analyzeDiag(text, state.target));
+  }
+  $('#diagload').addEventListener('click', function(){ $('#diagfile').click(); });
+  $('#diagfile').addEventListener('change', function(){
+    var f = this.files && this.files[0];
+    this.value = '';
+    if (!f) return;
+    if (f.size > 1048576) { showDiag({error:'El archivo pesa más de 1 MB: no parece un diagnóstico.'}); return; }
+    var r = new FileReader();
+    r.onload = function(){ analyze(String(r.result)); };
+    r.onerror = function(){ showDiag({error:'No se pudo leer el archivo. Probá pegando el contenido.'}); };
+    r.readAsText(f);
+  });
+  $('#diagparse').addEventListener('click', function(){ analyze($('#diagpaste').value); });
+
   function doCopy(){ copy(current.text, $('#code'), tab === 'install' ? 'Script copiado' : 'Diagnóstico copiado'); }
   $('#copy').addEventListener('click', doCopy);
   $('#barcopy').addEventListener('click', doCopy);

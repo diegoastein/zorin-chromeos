@@ -16,7 +16,8 @@ Pensado para una **Philco N14P4020** (Celeron de 2 núcleos, 4 GB de RAM, SSD de
 | `scripts/diagnostico-hardware.sh` | Reúne datos de WiFi, audio (codec, firmware SOF, perfiles de PipeWire/PulseAudio), cámara, micrófono, brillo y kernel para decidir qué drivers hacen falta. |
 | `tools/generate.js` | Genera un script a medida desde la terminal (necesita Node.js). |
 | `tools/build.sh` | Regenera `scripts/` a partir del panel. |
-| `tools/test.sh` | Revisa la sintaxis y corre cada script en modo de prueba. |
+| `tools/test.sh` | Revisa la sintaxis, corre cada script en modo de prueba y prueba el análisis del diagnóstico. |
+| `tools/test-diag.js` | Pruebas del análisis del diagnóstico con salidas inventadas (las corre `test.sh`). |
 | `docs/` | Notas del equipo y pendientes. |
 
 ## Cómo se usa
@@ -27,6 +28,8 @@ Pensado para una **Philco N14P4020** (Celeron de 2 núcleos, 4 GB de RAM, SSD de
    bash scripts/diagnostico-hardware.sh
    ```
    Si el WiFi no anda, compartí internet por USB desde el celular. El archivo queda en `~/diagnostico-hardware.txt`.
+
+   Para saber qué drivers activar, abrí `panel/index.html`, andá a la pestaña **Diagnóstico** y cargá ese archivo (o pegá su contenido). El panel se lee en tu navegador, no sube nada, te resume lo que detectó y, si confirmás, marca los módulos de drivers que corresponden. También se puede desde la terminal: `node tools/generate.js --analyze diagnostico-hardware.txt`.
 3. **Instalar Zorin.** Esto borra el disco, así que hacé copia de lo que quieras conservar.
 4. **Primer arranque:** conectate a internet y traé este repositorio.
    ```bash
@@ -75,6 +78,7 @@ node tools/generate.js --preset rec --target mx --out setup.sh # el mismo preset
 ## Qué está probado y qué no
 
 - Cada script pasa `bash -n` y corre completo en modo de prueba (`DRY_RUN=1`). Eso se verifica con `tools/test.sh`.
+- El análisis del diagnóstico se probó con salidas inventadas y con el diagnóstico de otra PC, no con el de la Philco. Sus reglas se apoyan en IDs de PCI y en mensajes del kernel (WiFi Realtek 8821CE y Broadcom, firmware que no carga, audio Intel sin tarjetas, placas sin driver). Por eso el panel muestra el resumen y pide confirmación antes de marcar módulos.
 - El modo de prueba **no** confirma que cada paquete o repositorio exista en tu versión de Zorin o de MX. Esos puntos se probaron solo por lectura de documentación, no en una Zorin ni en una MX reales.
 - La variante de MX no se probó en una MX real. Las claves de `xfconf` (teclado, atajos de xfwm4, efecto de composición) y los paquetes de Debian (`zram-tools`, `xfce4-screenshooter`) salieron de la documentación. Hay que verificarlos en la primera instalación.
 - Los ajustes de GNOME se aplican solo si la clave existe en esa versión. Si no, el script avisa y sigue.
