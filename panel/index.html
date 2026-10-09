@@ -1059,7 +1059,8 @@ function analyzeDiag(text, target){
     const m = line.match(/^[0-9a-f]{2}:[0-9a-f]{2}\.\d\s+(.+?)\s+\[[0-9a-f]{4}\]:\s*(.+?)\s+\[([0-9a-f]{4}):([0-9a-f]{4})\]\s*(?:\(rev [0-9a-f]+\))?\s*$/i);
     if (m) { d = { cls: m[1], name: m[2], id: (m[3] + ':' + m[4]).toLowerCase(), driver: false }; devs.push(d); return; }
     if (line.trim() === '--') { d = null; return; }
-    if (d && /Kernel driver in use:/i.test(line)) d.driver = true;
+    const kd = d && line.match(/Kernel driver in use:\s*(\S+)/i);
+    if (kd) { d.driver = true; d.driverName = kd[1]; }
   });
   const nets = devs.filter(x => /network controller/i.test(x.cls));
   const auds = devs.filter(x => /audio/i.test(x.cls));
@@ -1101,7 +1102,29 @@ function analyzeDiag(text, target){
     const analog = snd.some(l => /analog/i.test(l));
     const unbound = auds.filter(a => !a.driver);
     const intel = auds.some(a => a.id.indexOf('8086:') === 0 || /intel/i.test(a.name));
-    if (hasCard && analog && !unbound.length) {
+    // Placas con DSP SOF y códec I2S (por ejemplo ES8336): el driver clásico de Intel (HDA) no las maneja y dejaría el equipo sin tarjeta de sonido
+    const sof = snd.some(l => /\[sof-/i.test(l)) || auds.some(a => /^sof-/i.test(a.driverName || ''));
+    if (sof) {
+      const es = snd.some(l => /es8336/i.test(l));
+      note('info', 'Audio: la placa usa el driver SOF' + (es ? ' con el códec ES8336' : '') + '. El driver clásico de Intel no sirve acá: dejaría el equipo sin tarjeta de sonido.');
+      // Estado de los controles: ctl('Nombre') devuelve on/off o null
+      const mix = pick(/^Volumen y mute/) || [];
+      const ctl = name => {
+        const i = mix.findIndex(l => l.indexOf("name='" + name + "'") >= 0);
+        if (i < 0) return null;
+        for (let j = i + 1; j < mix.length && !/^numid=/.test(mix[j]); j++) {
+          const v = mix[j].match(/:\s*values=(on|off)\b/);
+          if (v) return v[1];
+        }
+        return null;
+      };
+      if (ctl('Headphone Jack') === 'on' && ctl('Speaker Switch') === 'off') {
+        note('warn', 'El códec marca "auriculares conectados" (Headphone Jack = on) y tiene los parlantes apagados (Speaker Switch = off). Si no hay nada enchufado en la ficha, falla la detección del conector, no un driver.');
+        add('drv_audio_unmute', 'Enciende los parlantes a mano; puede volver a apagarse si el conector sigue marcando auriculares.');
+      } else if (hasCard) {
+        note('ok', 'Audio: el sistema reconoce la tarjeta de sonido.');
+      }
+    } else if (hasCard && analog && !unbound.length) {
       note('ok', 'Audio: el sistema reconoce la salida analógica.');
     } else if (intel) {
       add('drv_audio', hasCard ? 'Solo se ven salidas digitales o HDMI, falta la analógica.' : 'El sistema no ve ninguna tarjeta de sonido.');
@@ -1162,7 +1185,7 @@ function analyzeDiag(text, target){
       {id:'drv_rtl', name:'Driver Realtek 8821CE', desc:'El script verifica que el chip exista antes de instalar.', dmx:'El script verifica que el chip exista. En MX el paquete puede no estar en los repositorios: si falla, deja los pasos a mano.', p:'', tag:'según diagnóstico'},
       {id:'drv_bcm', name:'Driver Broadcom de WiFi', desc:'El script verifica que la placa exista antes de instalar.', dmx:'El script verifica que la placa exista. En MX este driver está en non-free: si no está habilitado, deja los pasos a mano.', p:'', tag:'según diagnóstico'},
       {id:'drv_hwe', name:'Kernel más nuevo (HWE)', desc:'Mejor soporte para hardware reciente. Descarga más datos.', p:'', tag:'según diagnóstico'},
-      {id:'drv_audio', name:'Audio: driver clásico de Intel (HDA)', desc:'Fuerza el driver HDA clásico en vez de SOF. Sirve cuando el diagnóstico muestra solo salida digital/HDMI y no analógica.', p:'', tag:'según diagnóstico'},
+      {id:'drv_audio', name:'Audio: driver clásico de Intel (HDA)', desc:'Fuerza el driver HDA clásico en vez de SOF. Sirve cuando el diagnóstico muestra solo salida digital/HDMI y no analógica. No lo uses si el diagnóstico dice SOF o ES8336: dejaría el equipo sin tarjeta de sonido.', p:'', tag:'según diagnóstico'},
       {id:'drv_audio_fw', name:'Audio: reinstalar firmware SOF', desc:'Lo opuesto al driver clásico: reinstala sof-firmware y alsa-ucm-conf, por si falta la topología correcta. Probá uno de los dos, no los dos juntos.', p:'', tag:'según diagnóstico'},
       {id:'drv_audio_undo', name:'Deshacer el audio clásico de Intel', desc:'Borra el ajuste que dejó «Audio: driver clásico de Intel» y vuelve al driver predeterminado. Pide reiniciar. No se activa con Todo.', p:'', noall:true},
       {id:'drv_audio_unmute', name:'Audio: desmutear y fijar salida analógica', desc:'Desmutea los canales y pone como predeterminada la salida analógica si pactl la encuentra. No toca drivers del kernel.', p:'r'},

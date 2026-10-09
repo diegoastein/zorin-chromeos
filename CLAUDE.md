@@ -48,6 +48,7 @@ Reglas del generador:
 
 - Parsea por secciones `## ...`; los títulos tienen que coincidir con los que escribe el módulo `diag`. Si cambiás ese script, revisá `analyzeDiag` y `tools/test-diag.js`.
 - Está en el bloque `gen` (sin DOM) para probarlo con Node. El texto del archivo se muestra con `textContent`, nunca con `innerHTML`.
+- Audio SOF/ES8336 (como el de la Philco, `sof-essx8336`): `analyzeDiag` no sugiere `drv_audio` porque el driver HDA clásico dejaría sin tarjeta de sonido. Si `Headphone Jack` está en `on` y `Speaker Switch` en `off`, avisa que falla la detección del conector y sugiere `drv_audio_unmute`.
 - `drv_hwe` no se sugiere con `target=mx` (está en `ZORIN_ONLY`).
 - Las reglas (ID `10ec:c821`, Broadcom, mensajes de firmware, audio Intel sin tarjetas) no se probaron con el hardware de la Philco, solo con salidas inventadas y con el diagnóstico de otra PC. Cualquier regla nueva necesita un caso en `tools/test-diag.js`.
 - `diag` fuerza `LC_ALL=C` en `lscpu` y `free` para que el parser no dependa del idioma del sistema.

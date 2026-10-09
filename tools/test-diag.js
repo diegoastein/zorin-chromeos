@@ -65,6 +65,22 @@ check('Broadcom sin driver: sugiere drv_bcm', ids(r) === 'drv_bcm', ids(r));
 r = analyzeDiag(diag({ pci: INTEL_AUDIO, snd: 'aplay: device_list:274: no soundcards found...' }), 'zorin');
 check('Intel sin tarjetas de sonido: sugiere drv_audio', ids(r) === 'drv_audio', ids(r));
 
+// 4b. Audio SOF con códec ES8336 y detección de conector que marca auriculares: no se sugiere el driver clásico
+const SOF_PCI = '00:0e.0 Multimedia audio controller [0401]: Intel Corporation Celeron/Pentium Silver Processor High Definition Audio [8086:3198] (rev 06)\n\tKernel driver in use: sof-audio-pci-intel-apl\n\tKernel modules: snd_soc_avs, snd_sof_pci_intel_apl, snd_hda_intel';
+const SOF_SND = 'tarjeta 0: sofessx8336 [sof-essx8336], dispositivo 0: ES8336 (*) []\ntarjeta 0: sofessx8336 [sof-essx8336], dispositivo 5: HDMI 1 (*) [HDMI 1]';
+const mixer = (jack, spk) => ["numid=27,iface=CARD,name='Headphone Jack'", '  ; type=BOOLEAN,access=r-------,values=1', '  : values=' + jack,
+  "numid=29,iface=MIXER,name='Speaker Switch'", '  ; type=BOOLEAN,access=rw------,values=1', '  : values=' + spk].join('\n');
+function diagMixer(extra) {
+  return diag({ pci: SOF_PCI, snd: SOF_SND }).replace('## Módulos de audio cargados', '## Volumen y mute (tarjeta 0)\n' + extra + '\n## Módulos de audio cargados');
+}
+r = analyzeDiag(diagMixer(mixer('on', 'off')), 'zorin');
+check('SOF/ES8336 con jack=on y parlante apagado: no sugiere drv_audio', ids(r).indexOf('drv_audio,') < 0 && ids(r).split(',').indexOf('drv_audio') < 0, ids(r));
+check('SOF/ES8336 con jack=on y parlante apagado: sugiere drv_audio_unmute y avisa', ids(r) === 'drv_audio_unmute' && levels(r).indexOf('warn') >= 0, ids(r) + ' / ' + levels(r));
+r = analyzeDiag(diagMixer(mixer('off', 'on')), 'zorin');
+check('SOF/ES8336 sano: no sugiere nada', ids(r) === '', ids(r));
+r = analyzeDiag(diag({ pci: SOF_PCI, snd: SOF_SND }), 'zorin');
+check('SOF sin sección de controles: no sugiere el driver clásico', ids(r) === '', ids(r));
+
 // 5. Placa de red desconocida sin driver: HWE en Zorin, aviso en MX
 const unk = { pci: '02:00.0 Network controller [0280]: Acme Wireless XZ [abcd:1234]\n\tKernel modules: acme\n--\n' + INTEL_AUDIO, snd: SND_OK };
 check('Placa sin driver en Zorin: sugiere drv_hwe', ids(analyzeDiag(diag(unk), 'zorin')) === 'drv_hwe');
