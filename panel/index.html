@@ -608,6 +608,20 @@ mod_perf_power() {
 }
 </script>
 
+<script type="text/plain" data-mod="drv_audio_undo">
+
+mod_drv_audio_undo() {
+  say "Audio: quitar el driver clásico de Intel"
+  if [ "$DRY_RUN" = 1 ] || [ -e /etc/modprobe.d/99-audio-clasico.conf ]; then
+    run sudo rm -f /etc/modprobe.d/99-audio-clasico.conf
+    run sudo update-initramfs -u
+    NEEDS_REBOOT=1
+  else
+    warn "No existe /etc/modprobe.d/99-audio-clasico.conf; no hay nada que deshacer."
+  fi
+}
+</script>
+
 <script type="text/plain" data-mod="zram">
 
 mod_zram() {
@@ -921,7 +935,7 @@ const PWAS = [
 ];
 
 const ORDER = ['backup_snapshot','region','chrome','chrome_autostart','pwas','onedrive','accounts','acc_cal','acc_contacts','acc_mail',
-  'drv_fw','drv_hwe','drv_rtl','drv_bcm','drv_wifi_ps','drv_audio','drv_audio_fw','drv_audio_unmute','drv_brightness',
+  'drv_fw','drv_hwe','drv_rtl','drv_bcm','drv_wifi_ps','drv_audio','drv_audio_undo','drv_audio_fw','drv_audio_unmute','drv_brightness',
   'zram','perf_anim','perf_tracker','perf_power','perf_services',
   'updates','look_shelf','look_wallpaper','look_font','look_icons','look_scheme','look_scroll','look_touchpad','look_keys','look_favs'];
 
@@ -950,6 +964,8 @@ function build(state, mods){
   const target = TARGETS[state.target] ? state.target : 'zorin';
   const T = TARGETS[target];
   if ((on.has('pwas') || on.has('chrome_autostart')) && !on.has('chrome')) { on.add('chrome'); added.push('chrome'); }
+  // El audio clásico y su deshacer se anulan entre sí: si se piden los dos, se deja solo el deshacer
+  if (on.has('drv_audio') && on.has('drv_audio_undo')) on.delete('drv_audio');
   const chosen = ORDER.filter(id => on.has(id) && (target === 'zorin' || ZORIN_ONLY.indexOf(id) < 0));
   const pwas = PWAS.filter(p => (state.pwas || []).indexOf(p.id) >= 0);
   const scheme = SCHEMES[state.scheme] || 'default';
@@ -1148,6 +1164,7 @@ function analyzeDiag(text, target){
       {id:'drv_hwe', name:'Kernel más nuevo (HWE)', desc:'Mejor soporte para hardware reciente. Descarga más datos.', p:'', tag:'según diagnóstico'},
       {id:'drv_audio', name:'Audio: driver clásico de Intel (HDA)', desc:'Fuerza el driver HDA clásico en vez de SOF. Sirve cuando el diagnóstico muestra solo salida digital/HDMI y no analógica.', p:'', tag:'según diagnóstico'},
       {id:'drv_audio_fw', name:'Audio: reinstalar firmware SOF', desc:'Lo opuesto al driver clásico: reinstala sof-firmware y alsa-ucm-conf, por si falta la topología correcta. Probá uno de los dos, no los dos juntos.', p:'', tag:'según diagnóstico'},
+      {id:'drv_audio_undo', name:'Deshacer el audio clásico de Intel', desc:'Borra el ajuste que dejó «Audio: driver clásico de Intel» y vuelve al driver predeterminado. Pide reiniciar. No se activa con Todo.', p:'', noall:true},
       {id:'drv_audio_unmute', name:'Audio: desmutear y fijar salida analógica', desc:'Desmutea los canales y pone como predeterminada la salida analógica si pactl la encuentra. No toca drivers del kernel.', p:'r'},
       {id:'drv_brightness', name:'Brillo: driver nativo de pantalla', desc:'Cambia a acpi_backlight=native. Sirve si las teclas de brillo no responden.', p:'', tag:'según diagnóstico'}
     ]}
@@ -1174,7 +1191,7 @@ function analyzeDiag(text, target){
   function applyPreset(p){
     state.on = new Set();
     ITEMS.forEach(function(i){
-      if (applicable(i.id) && (p === 'all' || (p !== 'none' && i.p.indexOf(p) >= 0))) state.on.add(i.id);
+      if (applicable(i.id) && ((p === 'all' && !i.noall) || (p !== 'none' && p !== 'all' && i.p.indexOf(p) >= 0))) state.on.add(i.id);
     });
     render();
   }
@@ -1236,8 +1253,12 @@ function analyzeDiag(text, target){
     root.addEventListener('change', function(e){
       var t = e.target;
       if (t.matches('input[data-id]')) {
-        if (t.checked) state.on.add(t.getAttribute('data-id')); else state.on.delete(t.getAttribute('data-id'));
-        update();
+        var tid = t.getAttribute('data-id');
+        if (t.checked) state.on.add(tid); else state.on.delete(tid);
+        // El audio clásico y su deshacer son excluyentes: al marcar uno se apaga el otro
+        if (t.checked && tid === 'drv_audio') state.on.delete('drv_audio_undo');
+        if (t.checked && tid === 'drv_audio_undo') state.on.delete('drv_audio');
+        render();
       } else if (t.matches('input[data-pwa]')) {
         var id = t.getAttribute('data-pwa');
         state.pwas = state.pwas.filter(function(x){ return x !== id; });

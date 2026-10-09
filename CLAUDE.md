@@ -37,6 +37,7 @@ Hace falta Node.js (no hay `package.json` ni dependencias). Después de editar e
 Reglas del generador:
 
 - Si se eligen `pwas` o `chrome_autostart` sin `chrome`, se agrega `chrome` solo.
+- `drv_audio` y `drv_audio_undo` se anulan entre sí: la UI apaga uno al marcar el otro y `build()` deja solo el deshacer si llegan los dos. `drv_audio_undo` no entra en `ALL` ni en el preset Todo (`noall:true` en `GROUPS`).
 - Con `target=mx` se descartan los ids de `ZORIN_ONLY`.
 - `updates_reboot` es una opción de `updates` (la lee `REBOOTLINE`), no un módulo: no está en `ORDER` ni tiene bloque `data-mod`.
 - `diag` es un script aparte (diagnóstico de hardware), no entra en `build()`.
